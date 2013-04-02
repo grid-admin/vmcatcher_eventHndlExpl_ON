@@ -1,0 +1,220 @@
+#!/usr/bin/env python
+# USAGE: python vmcatcher_eventHndlExpl_ON --output_file=foo.tmp --datetime
+import sys
+if sys.version_info < (2, 4):
+    print "Your python interpreter is too old. Please consider upgrading."
+    sys.exit(1)
+
+import os
+import logging
+import optparse
+import hashlib
+import datetime
+try:
+    import simplejson as json
+except:
+    import json
+import time
+import datetime
+from xml.dom import Node
+from xml.dom import minidom
+from string import Template
+import commands
+
+
+time_format_definition = "%Y-%m-%dT%H:%M:%SZ"
+
+
+EnvEvent = set(['VMCATCHER_EVENT_TYPE',
+    'VMCATCHER_EVENT_DC_DESCRIPTION',
+    'VMCATCHER_EVENT_DC_IDENTIFIER',
+    'VMCATCHER_EVENT_DC_TITLE',
+    'VMCATCHER_EVENT_HV_HYPERVISOR',
+    'VMCATCHER_EVENT_HV_SIZE',
+    'VMCATCHER_EVENT_HV_URI',
+    'VMCATCHER_EVENT_SL_ARCH',
+    'VMCATCHER_EVENT_SL_CHECKSUM_SHA512',
+    'VMCATCHER_EVENT_SL_COMMENTS',
+    'VMCATCHER_EVENT_SL_OS',
+    'VMCATCHER_EVENT_SL_OSVERSION',
+    'VMCATCHER_EVENT_TYPE',
+    'VMCATCHER_EVENT_FILENAME'])
+    
+EnvConf = set(['VMCATCHER_RDBMS',
+    'VMCATCHER_CACHE_EVENT',
+    'VMCATCHER_LOG_CONF',
+    'VMCATCHER_DIR_CERT',
+    'VMCATCHER_CACHE_DIR_CACHE',
+    'VMCATCHER_CACHE_DIR_DOWNLOAD',
+    'VMCATCHER_CACHE_DIR_EXPIRE',
+    'VMCATCHER_CACHE_ACTION_DOWNLOAD',
+    'VMCATCHER_CACHE_ACTION_CHECK',
+    'VMCATCHER_CACHE_ACTION_EXPIRE'])
+
+
+def generateEnvDict(enviromentDict = os.environ):
+	FoundEnviroment = {}
+	EnvConfInteresting = EnvEvent.union(EnvConf)
+	for key in EnvConfInteresting:
+	    if key in enviromentDict.keys():
+		FoundEnviroment[key] = enviromentDict[key]
+	return FoundEnviroment
+
+def nullEnvDict(enviromentDict = generateEnvDict(),NullValue = ""):
+	FoundEnviroment = enviromentDict.copy()
+	enviromentKeysSet = set(FoundEnviroment.keys())
+	EnvConfInteresting = EnvEvent.union(EnvConf)
+	missing = EnvConfInteresting.difference(enviromentKeysSet)
+	for item in missing:
+	    FoundEnviroment[item] = NullValue
+	return FoundEnviroment
+  
+def getExpiredId(xmldoc,vmcatcherId):
+	for node in xmldoc.getElementsByTagName("IMAGE"):
+	        idList = node.getElementsByTagName("ID")
+	        for id in idList:
+			imageId = id.toxml().replace('<ID>','').replace('</ID>','')
+	        template = node.getElementsByTagName("TEMPLATE")
+	        for t in template:
+        	        catcherId = t.getElementsByTagName("VMCATCHER_EVENT_DC_IDENTIFIER")
+                	for cId in catcherId:
+				catcherId = cId.toxml().replace('<VMCATCHER_EVENT_DC_IDENTIFIER>','').replace('</VMCATCHER_EVENT_DC_IDENTIFIER>','').replace('<![CDATA[','').replace(']]>','')
+				if catcherId == vmcatcherId:
+					return imageId	
+
+def HandleAvailablePostfix(generator):
+	log = logging.getLogger("HandelAvailablePostfix")
+	## check if image is a qcow file or not
+	imageFile = generator['VMCATCHER_CACHE_DIR_CACHE'] +'/'+generator['VMCATCHER_EVENT_DC_IDENTIFIER'] 
+	command = "file "+imageFile+" | grep -io qcow &> /dev/null"
+	if os.system(command) == 0:
+	    driver="qcow2"
+	    log.info("Image is qcow2 format")
+	else:
+	    driver="raw"
+	    log.info("Image is raw format")	    
+	s = Template(
+			"NAME = \"$name\"\n"				+\
+			"PATH = \"$path\"\n"				+\
+			"TYPE = OS\n"					+\
+			"DRIVER= $imageType\n"				+\
+			"DESCRIPTION = \"$descrip\"\n" 			+\
+			"VMCATCHER_EVENT_DC_IDENTIFIER = \"$dcId\"\n"	
+		    )
+	tFile=s.substitute(
+			    name=generator['VMCATCHER_EVENT_DC_TITLE'], 		\
+			    path=imageFile,						\
+			    imageType=driver,						\
+			    descrip=generator['VMCATCHER_EVENT_DC_DESCRIPTION'],	\
+			    dcId=generator['VMCATCHER_EVENT_DC_IDENTIFIER']		
+			   )
+	## detect if templates directory exists
+	if not os.path.exists(generator['VMCATCHER_CACHE_DIR_CACHE'] +'/templates'):
+	    os.makedirs(generator['VMCATCHER_CACHE_DIR_CACHE'] +'/templates')
+	    log.info("Templates dir doesn't exist, creating")
+
+	templateFile = generator['VMCATCHER_CACHE_DIR_CACHE'] +'/templates' + '/'+generator['VMCATCHER_EVENT_DC_IDENTIFIER']  + ".one"
+	log.info("Creating template file "+templateFile)
+	f = open(templateFile, 'w')
+	f.write(tFile)
+	f.close()
+	## execute image template
+	command = "oneimage create -d default "+templateFile
+	log.info("Instantiating template: "+command)
+	os.system(command) 
+
+
+def HandleExpirePosfix(generator):
+	log = logging.getLogger("HandleExpirePosfix")
+	ON_IMAGE_ID = -1
+        command = "oneimage list --xml"
+        status, result = commands.getstatusoutput(command)
+        log.info("Getting image list: "+command)
+        xmldoc = minidom.parseString(result)
+	ON_IMAGE_ID = getExpiredId(xmldoc,generator['VMCATCHER_EVENT_DC_IDENTIFIER'])
+	if ON_IMAGE_ID != -1:
+		command = "oneimage disable " + ON_IMAGE_ID
+		log.info("Disabling image detected as expired: "+command)
+		os.system(command)
+	log.info(json.dumps(generator))
+
+
+def main():
+    reload(sys)
+    sys.setdefaultencoding('utf-8')
+    log = logging.getLogger("main")
+    p = optparse.OptionParser(version = "%prog " + "0.0.1")    
+    p.add_option('--generator',  action ='store',help='Set the dictionary Generator.', metavar='minium')
+    p.add_option('--verbose', action ='count',help='Change global log level, increasing log output.', metavar='LOGFILE')
+    p.add_option('--quiet', action ='count',help='Change global log level, decreasing log output.', metavar='LOGFILE')
+    p.add_option('--log-config', action ='store',help='Logfile configuration file, (overrides command line).', metavar='LOGFILE')
+    p.add_option('--logcfg', action ='store',help='Logfile configuration file.', metavar='LOGCFGFILE')
+    
+    options, arguments = p.parse_args()
+    if options.logcfg:
+        if os.path.isfile(str(options.logfile)):
+            logging.config.fileConfig(options.logfile)
+        else:
+            logging.basicConfig(level=logging.INFO)
+            log = logging.getLogger("main")
+            log.error("Logfile configuration file '%s' was not found." % (options.logfile))
+            sys.exit(1)
+    else:
+        logging.basicConfig(level=logging.INFO)    
+    outputDict = None
+    generator = nullEnvDict()
+    logFile = None
+    
+    if 'VMCHNDL_ON_LOG_CONF' in os.environ:
+        logFile = os.environ['VMCHNDL_ON_LOG_CONF']
+    
+    # Set up log file
+    LoggingLevel = logging.WARNING
+    LoggingLevelCounter = 2
+    if options.verbose:
+        LoggingLevelCounter = LoggingLevelCounter - options.verbose
+        if options.verbose == 1:
+            LoggingLevel = logging.INFO
+        if options.verbose == 2:
+            LoggingLevel = logging.DEBUG
+    if options.quiet:
+        LoggingLevelCounter = LoggingLevelCounter + options.quiet
+    if LoggingLevelCounter <= 0:
+        LoggingLevel = logging.DEBUG
+    if LoggingLevelCounter == 1:
+        LoggingLevel = logging.INFO
+    if LoggingLevelCounter == 2:
+        LoggingLevel = logging.WARNING
+    if LoggingLevelCounter == 3:
+        LoggingLevel = logging.ERROR
+    if LoggingLevelCounter == 4:
+        LoggingLevel = logging.FATAL
+    if LoggingLevelCounter >= 5:
+        LoggingLevel = logging.CRITICAL
+    
+    if options.log_config:
+        logFile = options.log_config
+    if logFile != None:
+        if os.path.isfile(str(options.log_config)):
+            logging.config.fileConfig(options.log_config)
+        else:
+            logging.basicConfig(level=LoggingLevel)
+            log = logging.getLogger("main")
+            log.error("Logfile configuration file '%s' was not found." % (options.log_config))
+            sys.exit(1)
+    else:
+        logging.basicConfig(level=LoggingLevel)
+    log = logging.getLogger("main")
+
+    caseDict = { "AvailablePostfix" : HandleAvailablePostfix, "ExpirePosfix" : HandleExpirePosfix}
+    print(generator['VMCATCHER_EVENT_TYPE'])
+    if generator['VMCATCHER_EVENT_TYPE'] in caseDict.keys():
+        hdlFunct = caseDict[generator['VMCATCHER_EVENT_TYPE']]
+        hdlFunct(generator)
+    else:
+        log.debug("Ignoring event '%s'" % (generator['VMCATCHER_EVENT_TYPE']))
+
+
+if __name__ == "__main__":
+    main()
+
