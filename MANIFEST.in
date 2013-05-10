@@ -1,3 +1,2 @@
-include vmcatcher_eventHndlExpl_ON
 include vmcatcher-cron.cfg
 
