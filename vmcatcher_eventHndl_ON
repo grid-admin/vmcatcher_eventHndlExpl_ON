@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# USAGE: python vmcatcher_eventHndlExpl_ON --output_file=foo.tmp --datetime
+# USAGE: python vmcatcher_eventHndlExpl --output_file=foo.tmp --datetime
 import sys
 if sys.version_info < (2, 4):
     print "Your python interpreter is too old. Please consider upgrading."

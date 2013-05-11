@@ -13,12 +13,12 @@ else:
 
 version = "0.0.1"
 
-setup(name='vmcatcher_eventHndlExpl_ON',
+setup(name='vmcatcher_eventHndlExpl',
     version=version,
-    description="vmcatcher_eventHndlExpl_ON manages images in fedcloud",
+    description="vmcatcher_eventHndl_ON manages images in fedcloud",
     author="R Rosende Dopazo",
     author_email="rrosende@cesga.es",
     url="www.cesga.es",
-    scripts=['vmcatcher_eventHndlExpl_ON'],
+    scripts=['vmcatcher_eventHndl_ON'],
     data_files=[('/usr/share/doc/vmcatcher-%s/examples/'% (version), ['vmcatcher-cron.cfg'])]
 )
