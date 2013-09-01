@@ -124,8 +124,8 @@ def HandleAvailablePostfix(generator):
 	os.system(command) 
 
 
-def HandleExpirePosfix(generator):
-	log = logging.getLogger("HandleExpirePosfix")
+def HandleExpirePostfix(generator):
+	log = logging.getLogger("HandleExpirePostfix")
 	ON_IMAGE_ID = -1
         command = "oneimage list --xml"
         status, result = commands.getstatusoutput(command)
@@ -206,7 +206,11 @@ def main():
         logging.basicConfig(level=LoggingLevel)
     log = logging.getLogger("main")
 
-    caseDict = { "AvailablePostfix" : HandleAvailablePostfix, "ExpirePosfix" : HandleExpirePosfix}
+    caseDict = { 
+            "AvailablePostfix" : HandleAvailablePostfix, 
+            "ExpirePosfix" : HandleExpirePostfix, # Backward compatability 
+            "ExpirePostfix" : HandleExpirePostfix # Forward compatability
+        }
     print(generator['VMCATCHER_EVENT_TYPE'])
     if generator['VMCATCHER_EVENT_TYPE'] in caseDict.keys():
         hdlFunct = caseDict[generator['VMCATCHER_EVENT_TYPE']]
