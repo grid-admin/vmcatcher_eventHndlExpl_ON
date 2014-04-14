@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/python
 # USAGE: python vmcatcher_eventHndlExpl --output_file=foo.tmp --datetime
 import sys
 if sys.version_info < (2, 4):
@@ -32,12 +32,15 @@ EnvEvent = set(['VMCATCHER_EVENT_TYPE',
     'VMCATCHER_EVENT_HV_HYPERVISOR',
     'VMCATCHER_EVENT_HV_SIZE',
     'VMCATCHER_EVENT_HV_URI',
+    'VMCATCHER_EVENT_HV_FORMAT',
+    'VMCATCHER_EVENT_HV_VERSION',
     'VMCATCHER_EVENT_SL_ARCH',
     'VMCATCHER_EVENT_SL_CHECKSUM_SHA512',
     'VMCATCHER_EVENT_SL_COMMENTS',
     'VMCATCHER_EVENT_SL_OS',
     'VMCATCHER_EVENT_SL_OSVERSION',
     'VMCATCHER_EVENT_TYPE',
+    'VMCATCHER_EVENT_IL_DC_IDENTIFIER',
     'VMCATCHER_EVENT_FILENAME'])
     
 EnvConf = set(['VMCATCHER_RDBMS',
@@ -86,27 +89,39 @@ def HandleAvailablePostfix(generator):
 	log = logging.getLogger("HandelAvailablePostfix")
 	## check if image is a qcow file or not
 	imageFile = generator['VMCATCHER_CACHE_DIR_CACHE'] +'/'+generator['VMCATCHER_EVENT_DC_IDENTIFIER'] 
-	command = "file "+imageFile+" | grep -io qcow &> /dev/null"
-	if os.system(command) == 0:
-	    driver="qcow2"
-	    log.info("Image is qcow2 format")
-	else:
-	    driver="raw"
-	    log.info("Image is raw format")	    
+	#command = "file "+imageFile+" | grep -io qcow &> /dev/null"
+	#if os.system(command) == 0:
+	#    driver="qcow2"
+	#    log.info("Image is qcow2 format")
+	#else:
+	#    driver="raw"
+	#    log.info("Image is raw format")	    
 	s = Template(
 			"NAME = \"$name\"\n"				+\
 			"PATH = \"$path\"\n"				+\
 			"TYPE = OS\n"					+\
-			"DRIVER= $imageType\n"				+\
 			"DESCRIPTION = \"$descrip\"\n" 			+\
-			"VMCATCHER_EVENT_DC_IDENTIFIER = \"$dcId\"\n"	
+			"VMCATCHER_EVENT_DC_IDENTIFIER = \"" + generator['VMCATCHER_EVENT_DC_IDENTIFIER'] + "\"\n" +\
+			"VMCATCHER_EVENT_DC_DESCRIPTION = \"" + generator['VMCATCHER_EVENT_DC_DESCRIPTION'] + "\"\n" +\
+			"VMCATCHER_EVENT_DC_TITLE = \"" + generator['VMCATCHER_EVENT_DC_TITLE'] + "\"\n" +\
+			"VMCATCHER_EVENT_HV_HYPERVISOR = \"" + generator['VMCATCHER_EVENT_HV_HYPERVISOR'] + "\"\n" +\
+			"VMCATCHER_EVENT_HV_SIZE = \"" + generator['VMCATCHER_EVENT_HV_SIZE'] + "\"\n" +\
+			"VMCATCHER_EVENT_HV_URI = \"" + generator['VMCATCHER_EVENT_HV_URI'] + "\"\n" +\
+			"VMCATCHER_EVENT_HV_FORMAT = \"" + generator['VMCATCHER_EVENT_HV_FORMAT'] + "\"\n" +\
+			"VMCATCHER_EVENT_HV_VERSION = \"" + generator['VMCATCHER_EVENT_HV_VERSION'] + "\"\n" +\
+			"VMCATCHER_EVENT_SL_ARCH = \"" + generator['VMCATCHER_EVENT_SL_ARCH'] + "\"\n" +\
+			"VMCATCHER_EVENT_SL_CHECKSUM_SHA512 = \"" + generator['VMCATCHER_EVENT_SL_CHECKSUM_SHA512'] + "\"\n" +\
+			"VMCATCHER_EVENT_SL_COMMENTS = \"" + generator['VMCATCHER_EVENT_SL_COMMENTS'] + "\"\n" +\
+			"VMCATCHER_EVENT_SL_OS = \"" + generator['VMCATCHER_EVENT_SL_OS'] + "\"\n" +\
+			"VMCATCHER_EVENT_SL_OSVERSION = \"" + generator['VMCATCHER_EVENT_SL_OSVERSION'] + "\"\n" +\
+			"VMCATCHER_EVENT_TYPE = \"" + generator['VMCATCHER_EVENT_TYPE'] + "\"\n" +\
+			"VMCATCHER_EVENT_IL_DC_IDENTIFIER = \"" + generator['VMCATCHER_EVENT_IL_DC_IDENTIFIER'] + "\"\n" +\
+			"VMCATCHER_EVENT_FILENAME = \"" + generator['VMCATCHER_EVENT_FILENAME'] + "\"\n"
 		    )
 	tFile=s.substitute(
 			    name=generator['VMCATCHER_EVENT_DC_TITLE'], 		\
 			    path=imageFile,						\
-			    imageType=driver,						\
-			    descrip=generator['VMCATCHER_EVENT_DC_DESCRIPTION'],	\
-			    dcId=generator['VMCATCHER_EVENT_DC_IDENTIFIER']		
+			    descrip=generator['VMCATCHER_EVENT_DC_DESCRIPTION']	
 			   )
 	## detect if templates directory exists
 	if not os.path.exists(generator['VMCATCHER_CACHE_DIR_CACHE'] +'/templates'):
