@@ -20,6 +20,9 @@ from xml.dom import Node
 from xml.dom import minidom
 from string import Template
 import commands
+import tarfile
+import fnmatch
+import shutil
 
 
 time_format_definition = "%Y-%m-%dT%H:%M:%SZ"
@@ -87,15 +90,53 @@ def getExpiredId(xmldoc,vmcatcherId):
 
 def HandleAvailablePostfix(generator):
 	log = logging.getLogger("HandelAvailablePostfix")
-	## check if image is a qcow file or not
 	imageFile = generator['VMCATCHER_CACHE_DIR_CACHE'] +'/'+generator['VMCATCHER_EVENT_DC_IDENTIFIER'] 
-	#command = "file "+imageFile+" | grep -io qcow &> /dev/null"
-	#if os.system(command) == 0:
-	#    driver="qcow2"
-	#    log.info("Image is qcow2 format")
-	#else:
-	#    driver="raw"
-	#    log.info("Image is raw format")	    
+
+        ## detect if ON templates directory exists
+        if not os.path.exists(generator['VMCATCHER_CACHE_DIR_CACHE'] +'/templates'):
+            os.makedirs(generator['VMCATCHER_CACHE_DIR_CACHE'] +'/templates')
+            log.info("Templates dir doesn't exist, creating")
+
+        # Detect OVA files
+        imgFormat = generator['VMCATCHER_EVENT_HV_FORMAT']
+        if imgFormat == 'OVA':
+                extractTarPath = generator['VMCATCHER_CACHE_DIR_CACHE'] +'/templates/'+ generator['VMCATCHER_EVENT_DC_IDENTIFIER']
+                os.makedirs(extractTarPath)
+                # open the tar file
+                tfile = tarfile.open(imageFile)
+
+                if tarfile.is_tarfile(imageFile):
+                        log.info(imageFile + " is an OVA file. Extracting files...")
+                        # extract all OVA contents
+                        tfile.extractall(extractTarPath)
+                        tfile.close()
+
+			image_patterns = ['*.vmdk', '*.vdi', '*.raw', '*.img', '*.qcow']
+			for file in os.listdir(extractTarPath):
+				for p in image_patterns:
+					if fnmatch.fnmatch(file, p):
+						imageFile=extractTarPath + '/' + file
+			# Convert OVF image to QCOW2
+			command = "qemu-img info " + imageFile + " &> /dev/null"
+			if os.system(command) == 0:
+				log.info("Converting " + imageFile + " to qcow2 format.")
+				command = "qemu-img convert -O qcow2 " + imageFile + " " + imageFile +".qcow2"
+				imageFile=imageFile +".qcow2"
+				if os.system(command) == 0:
+            				log.info("New QCOW2 image created: " + imageFile)
+        			else:
+        				log.error("Error creating QCOW2 image: " + imageFile)
+					imageFile = generator['VMCATCHER_CACHE_DIR_CACHE'] +'/'+generator['VMCATCHER_EVENT_DC_IDENTIFIER']
+
+			else:
+				log.error("qemu-img is not installed or this version does not support " + imageFile + " format. Please install a new qemu-img version.")
+				# In this case we will include the original OVA file into ON datastore as it is
+				imageFile = generator['VMCATCHER_CACHE_DIR_CACHE'] +'/'+generator['VMCATCHER_EVENT_DC_IDENTIFIER']
+			
+                else:
+                        log.error(imageFile + " is not a tarfile.")
+                        tfile.close()
+
 	s = Template(
 			"NAME = \"$name\"\n"				+\
 			"PATH = \"$path\"\n"				+\
@@ -119,24 +160,26 @@ def HandleAvailablePostfix(generator):
 			"VMCATCHER_EVENT_FILENAME = \"" + generator['VMCATCHER_EVENT_FILENAME'] + "\"\n"
 		    )
 	tFile=s.substitute(
-			    name=generator['VMCATCHER_EVENT_DC_TITLE'], 		\
+			    name=generator['VMCATCHER_EVENT_DC_TITLE'] + " " + str(time.time()) + " " + generator['VMCATCHER_EVENT_DC_IDENTIFIER'], 		\
 			    path=imageFile,						\
 			    descrip=generator['VMCATCHER_EVENT_DC_DESCRIPTION']	
 			   )
-	## detect if templates directory exists
-	if not os.path.exists(generator['VMCATCHER_CACHE_DIR_CACHE'] +'/templates'):
-	    os.makedirs(generator['VMCATCHER_CACHE_DIR_CACHE'] +'/templates')
-	    log.info("Templates dir doesn't exist, creating")
 
 	templateFile = generator['VMCATCHER_CACHE_DIR_CACHE'] +'/templates' + '/'+generator['VMCATCHER_EVENT_DC_IDENTIFIER']  + ".one"
 	log.info("Creating template file "+templateFile)
 	f = open(templateFile, 'w')
 	f.write(tFile)
 	f.close()
-	## execute image template
+
+	## execute image template to be included into ON
 	command = "oneimage create -d default "+templateFile
 	log.info("Instantiating template: "+command)
 	os.system(command) 
+	#try:
+	#	extractTarPath
+	#	shutil.rmtree(extractTarPath)
+	#except NameError:
+	#	log.info("OVA directory is not defined.")
 
 
 def HandleExpirePostfix(generator):
