@@ -9,7 +9,6 @@ import os
 import logging
 import optparse
 import hashlib
-import datetime
 try:
     import simplejson as json
 except:
@@ -57,144 +56,164 @@ EnvConf = set(['VMCATCHER_RDBMS',
     'VMCATCHER_CACHE_ACTION_CHECK',
     'VMCATCHER_CACHE_ACTION_EXPIRE'])
 
-
 def generateEnvDict(enviromentDict = os.environ):
-	FoundEnviroment = {}
-	EnvConfInteresting = EnvEvent.union(EnvConf)
-	for key in EnvConfInteresting:
-	    if key in enviromentDict.keys():
-		FoundEnviroment[key] = enviromentDict[key]
-	return FoundEnviroment
+    FoundEnviroment = {}
+    EnvConfInteresting = EnvEvent.union(EnvConf)
+    for key in EnvConfInteresting:
+        if key in enviromentDict.keys():
+            FoundEnviroment[key] = enviromentDict[key]
+    return FoundEnviroment
 
 def nullEnvDict(enviromentDict = generateEnvDict(),NullValue = ""):
-	FoundEnviroment = enviromentDict.copy()
-	enviromentKeysSet = set(FoundEnviroment.keys())
-	EnvConfInteresting = EnvEvent.union(EnvConf)
-	missing = EnvConfInteresting.difference(enviromentKeysSet)
-	for item in missing:
-	    FoundEnviroment[item] = NullValue
-	return FoundEnviroment
+    FoundEnviroment = enviromentDict.copy()
+    enviromentKeysSet = set(FoundEnviroment.keys())
+    EnvConfInteresting = EnvEvent.union(EnvConf)
+    missing = EnvConfInteresting.difference(enviromentKeysSet)
+    for item in missing:
+        FoundEnviroment[item] = NullValue
+    return FoundEnviroment
   
 def getExpiredId(xmldoc,vmcatcherId):
-	for node in xmldoc.getElementsByTagName("IMAGE"):
-	        idList = node.getElementsByTagName("ID")
-	        for id in idList:
-			imageId = id.toxml().replace('<ID>','').replace('</ID>','')
-	        template = node.getElementsByTagName("TEMPLATE")
-	        for t in template:
-        	        catcherId = t.getElementsByTagName("VMCATCHER_EVENT_DC_IDENTIFIER")
-                	for cId in catcherId:
-				catcherId = cId.toxml().replace('<VMCATCHER_EVENT_DC_IDENTIFIER>','').replace('</VMCATCHER_EVENT_DC_IDENTIFIER>','').replace('<![CDATA[','').replace(']]>','')
-				if catcherId == vmcatcherId:
-					return imageId	
+    for node in xmldoc.getElementsByTagName("IMAGE"):
+        idList = node.getElementsByTagName("ID")
+        for id in idList:
+            imageId = id.toxml().replace('<ID>','').replace('</ID>','')
+        template = node.getElementsByTagName("TEMPLATE")
+        for t in template:
+            catcherId = t.getElementsByTagName("VMCATCHER_EVENT_DC_IDENTIFIER")
+            for cId in catcherId:
+                catcherId = cId.toxml().replace('<VMCATCHER_EVENT_DC_IDENTIFIER>','').replace('</VMCATCHER_EVENT_DC_IDENTIFIER>','').replace('<![CDATA[','').replace(']]>','')
+                if catcherId == vmcatcherId:
+                    return imageId    
+
+def UntarFile(imageFile,log,extractTarPath):
+    # open the tar file
+    tfile = tarfile.open(imageFile)
+
+    if tarfile.is_tarfile(imageFile):
+        # imageFile could be for example: /srv/grid_emc/ubuntu_ova/ubuntu_12.ova
+        log.info("%s is an OVA file. Extracting files..." % (imageFile))
+        # extract all OVA contents
+        tfile.extractall(extractTarPath)
+        tfile.close()
+
+        image_patterns = ['*.vmdk', '*.vdi', '*.raw', '*.img', '*.qcow']
+        # where file are the files extracted from the OVA image, for example ubuntu_12-disk1.vmdk
+        for file in os.listdir(extractTarPath):
+            for p in image_patterns:
+                if fnmatch.fnmatch(file, p):
+                    imageFileInQcowFormat = "%s/%s" % (extractTarPath,file)
+                    # imageFileInQcowFormat = for example: /home/vmcatcher_cache/templates/a1e2ec9c-3f2b-4c11-8723-2928cda5ccd9/ubuntu_12-disk1.vmdk 
+        # Convert OVF image to QCOW2
+        command = "qemu-img info %s &> /dev/null" % (imageFileInQcowFormat)
+        if os.system(command) == 0:
+            log.info("Converting %s to qcow2 format." % (imageFileInQcowFormat))
+            command = "qemu-img convert -O qcow2 %s %s.qcow2" % (imageFileInQcowFormat,imageFileInQcowFormat)
+            # command = for example: 
+            ## qemu-img convert -O qcow2 /home/vmcatcher_cache/templates/a1e2ec9c-3f2b-4c11-8723-2928cda5ccd9/ubuntu_12-disk1.vmdk /home/vmcatcher_cache/templates/a1e2ec9c.../ubuntu_12-disk1.vmdk.qcow2
+            if os.system(command) == 0:
+                # imageFileQcowFormat is the OVA image converted in qcow
+                imageFileInQcowFormat = "%s.qcow2" % (imageFileInQcowFormat)
+                log.info("New QCOW2 image created: %s" % (imageFileInQcowFormat))
+                return imageFileInQcowFormat
+            else:
+                log.error("qemu-img is not installed or this version does not support %s format. Please install a new qemu-img version" % (imageFile))
+                # In this case we will include the original OVA file into ON datastore as it is
+        else:
+            log.error("qemu-img is not installed or this version does not support %s format. Please install a new qemu-img version" % (imageFile))
+            # In this case we will include the original OVA file into ON datastore as it is
+    else:
+        log.error("%s is not a tarfile." % (imageFile))
+        tfile.close()
 
 def HandleAvailablePostfix(generator):
-	log = logging.getLogger("HandelAvailablePostfix")
-	imageFile = generator['VMCATCHER_CACHE_DIR_CACHE'] +'/'+generator['VMCATCHER_EVENT_DC_IDENTIFIER'] 
+    log = logging.getLogger("HandelAvailablePostfix")
+    # where vmcatcher_cache_dir=/home/vmcatcher_cache and vmcatcher_dc_identifier is the ID for the VM
+    vmcatcher_cache_dir = generator['VMCATCHER_CACHE_DIR_CACHE']
+    vmcatcher_dc_identifier = generator['VMCATCHER_EVENT_DC_IDENTIFIER']
+    imageFile = "%s/%s" % (vmcatcher_cache_dir,vmcatcher_dc_identifier)
 
-        ## detect if ON templates directory exists
-        if not os.path.exists(generator['VMCATCHER_CACHE_DIR_CACHE'] +'/templates'):
-            os.makedirs(generator['VMCATCHER_CACHE_DIR_CACHE'] +'/templates')
-            log.info("Templates dir doesn't exist, creating")
+    ## detect if ON templates directory exists
+    ## where VMCATCHER_CACHE_DIR_CACHE=/home/vmcatcher_cache
+    if not os.path.exists("%s/templates" % (vmcatcher_cache_dir)):
+        os.makedirs("%s/templates" % (vmcatcher_cache_dir))
+        log.info("Templates dir doesn't exist, creating")
 
-        # Detect OVA files
-        imgFormat = generator['VMCATCHER_EVENT_HV_FORMAT']
-        if imgFormat == 'OVA':
-                extractTarPath = generator['VMCATCHER_CACHE_DIR_CACHE'] +'/templates/'+ generator['VMCATCHER_EVENT_DC_IDENTIFIER']
-                os.makedirs(extractTarPath)
-                # open the tar file
-                tfile = tarfile.open(imageFile)
+    # Detect OVA files
+    imgFormat = generator['VMCATCHER_EVENT_HV_FORMAT']
+    ## It also could be defined on the following way: if imgFormat == 'OVA' or imgFormat == 'ova':
+    if imgFormat in ('OVA', 'ova'):
+        extractTarPath = "%s/templates/%s" % (vmcatcher_cache_dir,vmcatcher_dc_identifier)
+        os.makedirs(extractTarPath)
+        # UntarFile function returns the image extracted/converted in qcow format, for example: /var/lib/one/pruebas_esfreire/ubuntu_12-disk1.vmdk.qcow2
+        imageFileQcowFormat = UntarFile(imageFile,log,extractTarPath)
+        # We update the content of imageFile variable with the image converted in qcow format, otherwise, its pointing to the OVA image, for example: /srv/grid_emc/ubuntu_ova/ubuntu_12.ova
+        imageFile = imageFileQcowFormat
+    ## Creating an OpenNebula template file for uploading the image to OpenNebula - %s = string variable1
+    ## Example: vmcatcher_cache_dir=/home/vmcatcher_cache and vmcatcher_dc_identifier is the ID for the VM - /home/vmcatcher_cache/templates/a1e2ec9c-3f2b-4c11-8723-2928cda5ccd9
+    templateFile = "%s/templates/%s.one" % (vmcatcher_cache_dir,vmcatcher_dc_identifier)
+    ## Where vmcatcher_dc_title is the name for the original image to be uploaded to the OpenNebula infrastructure, for example: ubuntu12.04
+    vmcatcher_dc_title = generator['VMCATCHER_EVENT_DC_TITLE']
+    log.info("Creating template file %s" % (templateFile))
+    # numerical_date is similar to this output 1399279181.07
+    numerical_date = str(time.time())
+    name = "%s %s %s" % (vmcatcher_dc_title,numerical_date,vmcatcher_dc_identifier)
+    try:
+        with open(templateFile, "w") as tfile:
+            tfile.write('NAME = "%s"\n' % (name))
+            tfile.write('PATH = "%s"\n' % (imageFile))
+            tfile.write('TYPE = "OS"\n')
+            tfile.write('DESCRIPTION = "%s"\n' % (generator['VMCATCHER_EVENT_DC_DESCRIPTION']))
+            tfile.write('VMCATCHER_EVENT_DC_IDENTIFIER = "%s"\n' % (generator['VMCATCHER_EVENT_DC_IDENTIFIER']))
+            tfile.write('VMCATCHER_EVENT_DC_DESCRIPTION = "%s"\n' % (generator['VMCATCHER_EVENT_DC_DESCRIPTION']))
+            tfile.write('VMCATCHER_EVENT_DC_TITLE = "%s"\n' % (generator['VMCATCHER_EVENT_DC_TITLE']))
+            tfile.write('VMCATCHER_EVENT_HV_HYPERVISOR = "%s"\n' % (generator['VMCATCHER_EVENT_HV_HYPERVISOR']))
+            tfile.write('VMCATCHER_EVENT_HV_SIZE = "%s"\n' % (generator['VMCATCHER_EVENT_HV_SIZE']))
+            tfile.write('VMCATCHER_EVENT_HV_URI = "%s"\n' % (generator['VMCATCHER_EVENT_HV_URI']))
+            tfile.write('VMCATCHER_EVENT_HV_FORMAT = "%s"\n' % (generator['VMCATCHER_EVENT_HV_FORMAT']))
+            tfile.write('VMCATCHER_EVENT_HV_VERSION = "%s"\n' % (generator['VMCATCHER_EVENT_HV_VERSION']))
+            tfile.write('VMCATCHER_EVENT_SL_ARCH = "%s"\n' % (generator['VMCATCHER_EVENT_SL_ARCH']))
+            tfile.write('VMCATCHER_EVENT_SL_CHECKSUM_SHA512 = "%s"\n' % (generator['VMCATCHER_EVENT_SL_CHECKSUM_SHA512']))
+            tfile.write('VMCATCHER_EVENT_SL_COMMENTS = "%s"\n' % (generator['VMCATCHER_EVENT_SL_COMMENTS']))
+            tfile.write('VMCATCHER_EVENT_SL_OS = "%s"\n' % (generator['VMCATCHER_EVENT_SL_OS']))
+            tfile.write('VMCATCHER_EVENT_SL_OSVERSION = "%s"\n' % (generator['VMCATCHER_EVENT_SL_OSVERSION']))
+            tfile.write('VMCATCHER_EVENT_TYPE = "%s"\n' % (generator['VMCATCHER_EVENT_TYPE']))
+            tfile.write('VMCATCHER_EVENT_IL_DC_IDENTIFIER = "%s"\n' % (generator['VMCATCHER_EVENT_IL_DC_IDENTIFIER']))
+            tfile.write('VMCATCHER_EVENT_FILENAME = "%s"\n' % (generator['VMCATCHER_EVENT_FILENAME']))
+            tfile.close()
 
-                if tarfile.is_tarfile(imageFile):
-                        log.info(imageFile + " is an OVA file. Extracting files...")
-                        # extract all OVA contents
-                        tfile.extractall(extractTarPath)
-                        tfile.close()
+    except IOError:
+        log.error("It was not possible to create the following image template to upload the image to OpenNebula: %s" % (templateFile))
+        sys.exit(2)
 
-			image_patterns = ['*.vmdk', '*.vdi', '*.raw', '*.img', '*.qcow']
-			for file in os.listdir(extractTarPath):
-				for p in image_patterns:
-					if fnmatch.fnmatch(file, p):
-						imageFile=extractTarPath + '/' + file
-			# Convert OVF image to QCOW2
-			command = "qemu-img info " + imageFile + " &> /dev/null"
-			if os.system(command) == 0:
-				log.info("Converting " + imageFile + " to qcow2 format.")
-				command = "qemu-img convert -O qcow2 " + imageFile + " " + imageFile +".qcow2"
-				imageFile=imageFile +".qcow2"
-				if os.system(command) == 0:
-            				log.info("New QCOW2 image created: " + imageFile)
-        			else:
-        				log.error("Error creating QCOW2 image: " + imageFile)
-					imageFile = generator['VMCATCHER_CACHE_DIR_CACHE'] +'/'+generator['VMCATCHER_EVENT_DC_IDENTIFIER']
-
-			else:
-				log.error("qemu-img is not installed or this version does not support " + imageFile + " format. Please install a new qemu-img version.")
-				# In this case we will include the original OVA file into ON datastore as it is
-				imageFile = generator['VMCATCHER_CACHE_DIR_CACHE'] +'/'+generator['VMCATCHER_EVENT_DC_IDENTIFIER']
-			
-                else:
-                        log.error(imageFile + " is not a tarfile.")
-                        tfile.close()
-
-	s = Template(
-			"NAME = \"$name\"\n"				+\
-			"PATH = \"$path\"\n"				+\
-			"TYPE = OS\n"					+\
-			"DESCRIPTION = \"$descrip\"\n" 			+\
-			"VMCATCHER_EVENT_DC_IDENTIFIER = \"" + generator['VMCATCHER_EVENT_DC_IDENTIFIER'] + "\"\n" +\
-			"VMCATCHER_EVENT_DC_DESCRIPTION = \"" + generator['VMCATCHER_EVENT_DC_DESCRIPTION'] + "\"\n" +\
-			"VMCATCHER_EVENT_DC_TITLE = \"" + generator['VMCATCHER_EVENT_DC_TITLE'] + "\"\n" +\
-			"VMCATCHER_EVENT_HV_HYPERVISOR = \"" + generator['VMCATCHER_EVENT_HV_HYPERVISOR'] + "\"\n" +\
-			"VMCATCHER_EVENT_HV_SIZE = \"" + generator['VMCATCHER_EVENT_HV_SIZE'] + "\"\n" +\
-			"VMCATCHER_EVENT_HV_URI = \"" + generator['VMCATCHER_EVENT_HV_URI'] + "\"\n" +\
-			"VMCATCHER_EVENT_HV_FORMAT = \"" + generator['VMCATCHER_EVENT_HV_FORMAT'] + "\"\n" +\
-			"VMCATCHER_EVENT_HV_VERSION = \"" + generator['VMCATCHER_EVENT_HV_VERSION'] + "\"\n" +\
-			"VMCATCHER_EVENT_SL_ARCH = \"" + generator['VMCATCHER_EVENT_SL_ARCH'] + "\"\n" +\
-			"VMCATCHER_EVENT_SL_CHECKSUM_SHA512 = \"" + generator['VMCATCHER_EVENT_SL_CHECKSUM_SHA512'] + "\"\n" +\
-			"VMCATCHER_EVENT_SL_COMMENTS = \"" + generator['VMCATCHER_EVENT_SL_COMMENTS'] + "\"\n" +\
-			"VMCATCHER_EVENT_SL_OS = \"" + generator['VMCATCHER_EVENT_SL_OS'] + "\"\n" +\
-			"VMCATCHER_EVENT_SL_OSVERSION = \"" + generator['VMCATCHER_EVENT_SL_OSVERSION'] + "\"\n" +\
-			"VMCATCHER_EVENT_TYPE = \"" + generator['VMCATCHER_EVENT_TYPE'] + "\"\n" +\
-			"VMCATCHER_EVENT_IL_DC_IDENTIFIER = \"" + generator['VMCATCHER_EVENT_IL_DC_IDENTIFIER'] + "\"\n" +\
-			"VMCATCHER_EVENT_FILENAME = \"" + generator['VMCATCHER_EVENT_FILENAME'] + "\"\n"
-		    )
-	tFile=s.substitute(
-			    name=generator['VMCATCHER_EVENT_DC_TITLE'] + " " + str(time.time()) + " " + generator['VMCATCHER_EVENT_DC_IDENTIFIER'], 		\
-			    path=imageFile,						\
-			    descrip=generator['VMCATCHER_EVENT_DC_DESCRIPTION']	
-			   )
-
-	templateFile = generator['VMCATCHER_CACHE_DIR_CACHE'] +'/templates' + '/'+generator['VMCATCHER_EVENT_DC_IDENTIFIER']  + ".one"
-	log.info("Creating template file "+templateFile)
-	f = open(templateFile, 'w')
-	f.write(tFile)
-	f.close()
-
-	## execute image template to be included into ON
-	command = "oneimage create -d default "+templateFile
-	log.info("Instantiating template: "+command)
-	os.system(command) 
-	#try:
-	#	extractTarPath
-	#	shutil.rmtree(extractTarPath)
-	#except NameError:
-	#	log.info("OVA directory is not defined.")
+    ## execute image template to be included into ON - Upload the image to the OpenNebula infrastructure
+    command = "oneimage create -d default %s" % (templateFile)
+    log.info("Instantiating template: %s" % (command))
+    os.system(command) 
+    # In a future, we could delete the temporary files where we extract the OVA files 
+    #try:
+    #    extractTarPath
+    #    shutil.rmtree(extractTarPath)
+    #except NameError:
+    #    log.info("OVA directory is not defined.")
 
 
 def HandleExpirePostfix(generator):
-	log = logging.getLogger("HandleExpirePostfix")
-	ON_IMAGE_ID = -1
-        command = "oneimage list --xml"
-        status, result = commands.getstatusoutput(command)
-        log.info("Getting image list: "+command)
-        xmldoc = minidom.parseString(result)
-	ON_IMAGE_ID = getExpiredId(xmldoc,generator['VMCATCHER_EVENT_DC_IDENTIFIER'])
-	if ON_IMAGE_ID != -1:
-		command = "oneimage disable " + ON_IMAGE_ID
-		log.info("Disabling image detected as expired: "+command)
-		os.system(command)
-	log.info(json.dumps(generator))
+    log = logging.getLogger("HandleExpirePostfix")
+    ON_IMAGE_ID = -1
+    command = "oneimage list --xml"
+    status, result = commands.getstatusoutput(command)
+    log.info("Getting image list: %s" % (command))
+    xmldoc = minidom.parseString(result)
+    vmcatcher_dc_identifier = generator['VMCATCHER_EVENT_DC_IDENTIFIER'] 
+    ## ON_IMAGE_ID = getExpiredId(xmldoc,generator['VMCATCHER_EVENT_DC_IDENTIFIER'])
+    ON_IMAGE_ID = getExpiredId(xmldoc,vmcatcher_dc_identifier)
+    if ON_IMAGE_ID != -1:
+        # If we have execute an unsubscribe for the image or if there is a new version for this image, the vmcatcher_eventHndl_ON disable this image on the OpenNebula infrastructure
+        command = "oneimage disable %s" % (ON_IMAGE_ID)
+        log.info("Disabling image detected as expired: %s" % (command))
+        os.system(command)
+    log.info(json.dumps(generator))
 
 
 def main():
@@ -269,7 +288,7 @@ def main():
             "ExpirePosfix" : HandleExpirePostfix, # Backward compatability 
             "ExpirePostfix" : HandleExpirePostfix # Forward compatability
         }
-    print(generator['VMCATCHER_EVENT_TYPE'])
+    ###print(generator['VMCATCHER_EVENT_TYPE'])
     if generator['VMCATCHER_EVENT_TYPE'] in caseDict.keys():
         hdlFunct = caseDict[generator['VMCATCHER_EVENT_TYPE']]
         hdlFunct(generator)
@@ -279,4 +298,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
