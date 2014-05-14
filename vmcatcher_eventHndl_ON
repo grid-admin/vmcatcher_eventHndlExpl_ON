@@ -97,25 +97,29 @@ def UntarFile(imageFile,log,extractTarPath):
         tfile.extractall(extractTarPath)
         tfile.close()
 
-        image_patterns = ['*.vmdk', '*.vdi', '*.raw', '*.img', '*.qcow']
+        ##image_patterns = ['*.vmdk', '*.vdi', '*.raw', '*.img', '*.qcow']
+        image_patterns = ['*disk1.vmdk', '*disk1.vdi', '*disk1.raw', '*disk1.img', '*disk1.qcow']
+        # We force to take disk1 in case the image have two disks as for example: cernvm.x86_64-disk1.vmdk and cernvm.x86_64-disk2.vmdk
         # where file are the files extracted from the OVA image, for example ubuntu_12-disk1.vmdk
         for file in os.listdir(extractTarPath):
             for p in image_patterns:
                 if fnmatch.fnmatch(file, p):
-                    imageFileInQcowFormat = "%s/%s" % (extractTarPath,file)
-                    # imageFileInQcowFormat = for example: /home/vmcatcher_cache/templates/a1e2ec9c-3f2b-4c11-8723-2928cda5ccd9/ubuntu_12-disk1.vmdk 
-        # Convert OVF image to QCOW2
-        command = "qemu-img info %s &> /dev/null" % (imageFileInQcowFormat)
+                    imageFileInRawFormat = "%s/%s" % (extractTarPath,file)
+                    # imageFileInRawFormat = for example: /home/vmcatcher_cache/templates/a1e2ec9c-3f2b-4c11-8723-2928cda5ccd9/ubuntu_12-disk1.vmdk 
+        # Convert OVF image to RAW
+        command = "qemu-img info %s &> /dev/null" % (imageFileInRawFormat)
         if os.system(command) == 0:
-            log.info("Converting %s to qcow2 format." % (imageFileInQcowFormat))
-            command = "qemu-img convert -O qcow2 %s %s.qcow2" % (imageFileInQcowFormat,imageFileInQcowFormat)
+            log.info("Converting %s to raw format." % (imageFileInRawFormat))
+            ## command = "qemu-img convert -O qcow2 %s %s.qcow2" % (imageFileInRawFormat,imageFileInRawFormat)
+            command = "qemu-img convert -O raw %s %s.raw" % (imageFileInRawFormat,imageFileInRawFormat)
             # command = for example: 
-            ## qemu-img convert -O qcow2 /home/vmcatcher_cache/templates/a1e2ec9c-3f2b-4c11-8723-2928cda5ccd9/ubuntu_12-disk1.vmdk /home/vmcatcher_cache/templates/a1e2ec9c.../ubuntu_12-disk1.vmdk.qcow2
+            ## qemu-img convert -O raw /home/vmcatcher_cache/templates/a1e2ec9c-3f2b-4c11-8723-2928cda5ccd9/ubuntu_12-disk1.vmdk /home/vmcatcher_cache/templates/a1e2ec9c.../ubuntu_12-disk1.vmdk.raw
+            ## At first, we converted the image in qcow, but we observed that the DOM-0 needed a recent version of qemu tool to run correctly the image, so we decided to convert the image better in raw format.
             if os.system(command) == 0:
-                # imageFileQcowFormat is the OVA image converted in qcow
-                imageFileInQcowFormat = "%s.qcow2" % (imageFileInQcowFormat)
-                log.info("New QCOW2 image created: %s" % (imageFileInQcowFormat))
-                return imageFileInQcowFormat
+                # imageFileRawFormat is the OVA image converted in raw
+                imageFileInRawFormat = "%s.raw" % (imageFileInRawFormat)
+                log.info("New QCOW2 image created: %s" % (imageFileInRawFormat))
+                return imageFileInRawFormat
             else:
                 log.error("qemu-img is not installed or this version does not support %s format. Please install a new qemu-img version" % (imageFile))
                 # In this case we will include the original OVA file into ON datastore as it is
@@ -146,18 +150,19 @@ def HandleAvailablePostfix(generator):
         extractTarPath = "%s/templates/%s" % (vmcatcher_cache_dir,vmcatcher_dc_identifier)
         os.makedirs(extractTarPath)
         # UntarFile function returns the image extracted/converted in qcow format, for example: /var/lib/one/pruebas_esfreire/ubuntu_12-disk1.vmdk.qcow2
-        imageFileQcowFormat = UntarFile(imageFile,log,extractTarPath)
+        imageFileRawFormat = UntarFile(imageFile,log,extractTarPath)
         # We update the content of imageFile variable with the image converted in qcow format, otherwise, its pointing to the OVA image, for example: /srv/grid_emc/ubuntu_ova/ubuntu_12.ova
-        imageFile = imageFileQcowFormat
+        imageFile = imageFileRawFormat
     ## Creating an OpenNebula template file for uploading the image to OpenNebula - %s = string variable1
     ## Example: vmcatcher_cache_dir=/home/vmcatcher_cache and vmcatcher_dc_identifier is the ID for the VM - /home/vmcatcher_cache/templates/a1e2ec9c-3f2b-4c11-8723-2928cda5ccd9
     templateFile = "%s/templates/%s.one" % (vmcatcher_cache_dir,vmcatcher_dc_identifier)
     ## Where vmcatcher_dc_title is the name for the original image to be uploaded to the OpenNebula infrastructure, for example: ubuntu12.04
-    vmcatcher_dc_title = generator['VMCATCHER_EVENT_DC_TITLE']
+    ## vmcatcher_dc_title = generator['VMCATCHER_EVENT_DC_TITLE']
+    ## numerical_date is similar to this output 1399279181.07
+    ## numerical_date = str(time.time())
+    ## name = "%s %s %s" % (vmcatcher_dc_title,numerical_date,vmcatcher_dc_identifier)
+    name = "%s" % (vmcatcher_dc_identifier)
     log.info("Creating template file %s" % (templateFile))
-    # numerical_date is similar to this output 1399279181.07
-    numerical_date = str(time.time())
-    name = "%s %s %s" % (vmcatcher_dc_title,numerical_date,vmcatcher_dc_identifier)
     try:
         with open(templateFile, "w") as tfile:
             tfile.write('NAME = "%s"\n' % (name))
