@@ -74,17 +74,49 @@ def nullEnvDict(enviromentDict = generateEnvDict(),NullValue = ""):
     return FoundEnviroment
   
 def getExpiredId(xmldoc,vmcatcherId):
+    # where vmcatcherId = vmcatcher_dc_identifier = 93084776-1176-4849-95dc-cc7a15f2ce97
     for node in xmldoc.getElementsByTagName("IMAGE"):
         idList = node.getElementsByTagName("ID")
         for id in idList:
+            # where imageId = returns the ID for the image, for example: 460
             imageId = id.toxml().replace('<ID>','').replace('</ID>','')
         template = node.getElementsByTagName("TEMPLATE")
         for t in template:
             catcherId = t.getElementsByTagName("VMCATCHER_EVENT_DC_IDENTIFIER")
             for cId in catcherId:
+                # where catcherId = returns the UID for the image, for example: 47404daf-a97c-4636-bacb-e78a551c1e75
                 catcherId = cId.toxml().replace('<VMCATCHER_EVENT_DC_IDENTIFIER>','').replace('</VMCATCHER_EVENT_DC_IDENTIFIER>','').replace('<![CDATA[','').replace(']]>','')
                 if catcherId == vmcatcherId:
-                    return imageId    
+                    # ON_image_is = we take the last ID for the image which find in the coincidence with the vmcatcher_dc_identifier(vmcatcherId) inside the bucle for, for example: 460
+                    ON_image_id = imageId
+
+    # we check if the variable is defined, in other words, if it has some value, if yes, we return the content for the variable, otherwise we don't return it: \ 
+    # http://stackoverflow.com/questions/843277/how-do-i-check-if-a-variable-exists-in-python
+    if 'ON_image_id' in locals():
+        return ON_image_id
+
+def HandleExpirePostfix(generator):
+    log = logging.getLogger("HandleExpirePostfix")
+    ON_IMAGE_ID = -1
+    command = "oneimage list --xml"
+    status, result = commands.getstatusoutput(command)
+    log.info("Getting image list: %s" % (command))
+    xmldoc = minidom.parseString(result)
+    vmcatcher_dc_identifier = generator['VMCATCHER_EVENT_DC_IDENTIFIER']
+    # ON_IMAGE_ID = returns the OpenNebula image ID for the image that we are looking for with vmcatcher_dc_identifier inside the oneimage list in xml (xmldoc), for example: 460
+    ON_IMAGE_ID = getExpiredId(xmldoc,vmcatcher_dc_identifier)
+    # numerical_date =  Thu May 15 2014 1400165983.96 
+    numerical_date = "%s %s" % (time.strftime("%a %B %d %Y"),time.time())
+    if ON_IMAGE_ID != -1:
+        # If we have execute an unsubscribe for the image or if there is a new version for this image, the vmcatcher_eventHndl_ON disable this image on the OpenNebula infrastructure
+        ## oneimage  rename <imageid> <name>
+        command = "oneimage rename %s '%s %s'" % (ON_IMAGE_ID,vmcatcher_dc_identifier,numerical_date)
+        os.system(command) 
+        log.info("Renaming the detected previous image version as UID_timestamp: %s" % (command))
+        command = "oneimage disable %s" % (ON_IMAGE_ID)
+        log.info("Disabling image detected because is expired or unsusbribed or there is a new version: %s" % (command))
+        os.system(command)
+    log.info(json.dumps(generator))
 
 def UntarFile(imageFile,log,extractTarPath):
     # open the tar file
@@ -104,8 +136,9 @@ def UntarFile(imageFile,log,extractTarPath):
         for file in os.listdir(extractTarPath):
             for p in image_patterns:
                 if fnmatch.fnmatch(file, p):
+                    # imageFileInRawFormat = for example: /home/vmcatcher_cache/templates/a1e2ec9c-3f2b-4c11-8723-2928cda5ccd9/ubuntu_12-disk1.vmdk
                     imageFileInRawFormat = "%s/%s" % (extractTarPath,file)
-                    # imageFileInRawFormat = for example: /home/vmcatcher_cache/templates/a1e2ec9c-3f2b-4c11-8723-2928cda5ccd9/ubuntu_12-disk1.vmdk 
+
         # Convert OVF image to RAW
         command = "qemu-img info %s &> /dev/null" % (imageFileInRawFormat)
         if os.system(command) == 0:
@@ -120,12 +153,15 @@ def UntarFile(imageFile,log,extractTarPath):
                 imageFileInRawFormat = "%s.raw" % (imageFileInRawFormat)
                 log.info("New QCOW2 image created: %s" % (imageFileInRawFormat))
                 return imageFileInRawFormat
+
             else:
-                log.error("qemu-img is not installed or this version does not support %s format. Please install a new qemu-img version" % (imageFile))
                 # In this case we will include the original OVA file into ON datastore as it is
+                log.error("qemu-img is not installed or this version does not support %s format. Please install a new qemu-img version" % (imageFile))
+
         else:
-            log.error("qemu-img is not installed or this version does not support %s format. Please install a new qemu-img version" % (imageFile))
             # In this case we will include the original OVA file into ON datastore as it is
+            log.error("qemu-img is not installed or this version does not support %s format. Please install a new qemu-img version" % (imageFile))
+
     else:
         log.error("%s is not a tarfile." % (imageFile))
         tfile.close()
@@ -151,9 +187,9 @@ def HandleAvailablePostfix(generator):
         os.makedirs(extractTarPath)
         # UntarFile function returns the image extracted/converted in qcow format, for example: /var/lib/one/pruebas_esfreire/ubuntu_12-disk1.vmdk.qcow2
         imageFileRawFormat = UntarFile(imageFile,log,extractTarPath)
-        # We update the content of imageFile variable with the image converted in qcow format, otherwise, its pointing to the OVA image, for example: /srv/grid_emc/ubuntu_ova/ubuntu_12.ova
+        # We update the content of imageFile variable with the image converted in raw format, otherwise, its pointing to the OVA image, for example: /srv/grid_emc/ubuntu_ova/ubuntu_12.ova
         imageFile = imageFileRawFormat
-    ## Creating an OpenNebula template file for uploading the image to OpenNebula - %s = string variable1
+    ## Creating an OpenNebula template file for uploading the image to OpenNebula - %s = string 
     ## Example: vmcatcher_cache_dir=/home/vmcatcher_cache and vmcatcher_dc_identifier is the ID for the VM - /home/vmcatcher_cache/templates/a1e2ec9c-3f2b-4c11-8723-2928cda5ccd9
     templateFile = "%s/templates/%s.one" % (vmcatcher_cache_dir,vmcatcher_dc_identifier)
     ## Where vmcatcher_dc_title is the name for the original image to be uploaded to the OpenNebula infrastructure, for example: ubuntu12.04
@@ -191,7 +227,10 @@ def HandleAvailablePostfix(generator):
         log.error("It was not possible to create the following image template to upload the image to OpenNebula: %s" % (templateFile))
         sys.exit(2)
 
-    ## execute image template to be included into ON - Upload the image to the OpenNebula infrastructure
+    ## HandleExpirePostfix(generator) checks if there is a new version for the image to which we are subscribed. If there is a new image, it renames the old image as for example: \
+    # 93084776-1176-4849-95dc-cc7a15f2ce97 Thu May 15 2014 1400169883.66 and it also disable this image. Then, it uploads the new version for the image as normally. 
+    HandleExpirePostfix(generator)
+    ## Creating the image on ON - Upload the image to the OpenNebula infrastructure 
     command = "oneimage create -d default %s" % (templateFile)
     log.info("Instantiating template: %s" % (command))
     os.system(command) 
@@ -201,25 +240,6 @@ def HandleAvailablePostfix(generator):
     #    shutil.rmtree(extractTarPath)
     #except NameError:
     #    log.info("OVA directory is not defined.")
-
-
-def HandleExpirePostfix(generator):
-    log = logging.getLogger("HandleExpirePostfix")
-    ON_IMAGE_ID = -1
-    command = "oneimage list --xml"
-    status, result = commands.getstatusoutput(command)
-    log.info("Getting image list: %s" % (command))
-    xmldoc = minidom.parseString(result)
-    vmcatcher_dc_identifier = generator['VMCATCHER_EVENT_DC_IDENTIFIER'] 
-    ## ON_IMAGE_ID = getExpiredId(xmldoc,generator['VMCATCHER_EVENT_DC_IDENTIFIER'])
-    ON_IMAGE_ID = getExpiredId(xmldoc,vmcatcher_dc_identifier)
-    if ON_IMAGE_ID != -1:
-        # If we have execute an unsubscribe for the image or if there is a new version for this image, the vmcatcher_eventHndl_ON disable this image on the OpenNebula infrastructure
-        command = "oneimage disable %s" % (ON_IMAGE_ID)
-        log.info("Disabling image detected as expired: %s" % (command))
-        os.system(command)
-    log.info(json.dumps(generator))
-
 
 def main():
     reload(sys)
