@@ -13,7 +13,7 @@ Requirements
 
 * VMcatcher
 * Python 2.5
-* qemu-img >= 1.5.0 --`qemu-img-1.7.93-1 / qemu-utils_1.7.93-1` can be downloaded for Scientific Linux 6 and Debian 6 OS respectively from the following link: [http://repo.cesga.es/pub/](http://repo.cesga.es/pub/)
+* qemu-img >= 1.5.0 --`qemu-img-1.7.93-1 / qemu-utils_1.7.93-1` packages can be downloaded for Scientific Linux 6 and Debian 6 OS respectively from the following link: [http://repo.cesga.es/pub/](http://repo.cesga.es/pub/)
 
 Release notes
 ------------
@@ -34,7 +34,7 @@ vmcatcher_eventHndl_ON version 0.0.4 incorporates the following operation:
 
    D) Register the new image and name it as `$dc:identifier`
 
-   E) Apply the metadata **remembered** in A point
+   E) Apply the metadata **remembered in A point**
 
 =====
 
