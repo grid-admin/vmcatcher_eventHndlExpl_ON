@@ -24,7 +24,9 @@ vmcatcher_eventHndl_ON version 0.0.4 incorporates the following operation:
 2. The first image is downloaded and registered, it should not be made public. It is up to the site administrator the decision of making public the image.
 3. Image lives in the cloud, VMs are launched
 4. VMcatcher receives an update for a determined image
-5. VMcatcher_eventHndl_ON will:
+5. VMcatcher_eventHndl_ON will: 
+
+   hola
 
    A) Read metadata of the existing "$dc:identifier" image and 'remember' owner, group, permissions and enabled/disabled status
    B) Chown & chmod the oldi/previous image to oneadmin:oneadmin 700
