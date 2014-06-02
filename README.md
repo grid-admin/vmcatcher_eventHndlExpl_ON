@@ -26,12 +26,14 @@ vmcatcher_eventHndl_ON version 0.0.4 incorporates the following operation:
 4. VMcatcher receives an update for a determined image
 5. VMcatcher_eventHndl_ON will: 
 
-   hola
-
    A) Read metadata of the existing "$dc:identifier" image and 'remember' owner, group, permissions and enabled/disabled status
+
    B) Chown & chmod the oldi/previous image to oneadmin:oneadmin 700
+
    C) Rename the old image to ''$dc:identifier_$timestamp"
+
    D) Register the new image and name it as "$dc:identifier"
+
    E) Apply the metadata 'remembered' in A
 
 =====
