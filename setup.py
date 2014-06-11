@@ -20,5 +20,5 @@ setup(name='vmcatcher_eventHndlExpl',
     author_email="grid-admin@cesga.es",
     url="www.cesga.es",
     scripts=['vmcatcher_eventHndl_ON'],
-    data_files=[('/usr/share/doc/vmcatcher-%s/examples/'% (version), ['vmcatcher-cron.cfg', 'README.md', 'ChangeLog'])]
+    data_files=[('/usr/share/doc/vmcatcher-%s/examples/'% (version), ['vmcatcher-cron.cfg', 'README.md', 'ChangeLog', 'LICENSE'])]
 )
