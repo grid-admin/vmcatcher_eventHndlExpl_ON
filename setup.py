@@ -11,14 +11,14 @@ else:
         	from setuptools import setup, find_packages
 
 
-version = "0.0.4"
+version = "0.0.5"
 
 setup(name='vmcatcher_eventHndlExpl',
     version=version,
-    description="vmcatcher_eventHndl_ON manages images in fedcloud",
+    description="vmcatcher_eventHndl_ON manages images in fedcloud for OpenNebula",
     author="R Rosende Dopazo",
     author_email="grid-admin@cesga.es",
     url="www.cesga.es",
     scripts=['vmcatcher_eventHndl_ON'],
-    data_files=[('/usr/share/doc/vmcatcher-%s/examples/'% (version), ['vmcatcher-cron.cfg'])]
+    data_files=[('/usr/share/doc/vmcatcher-%s/examples/'% (version), ['vmcatcher-cron.cfg', 'README.md', 'ChangeLog'])]
 )

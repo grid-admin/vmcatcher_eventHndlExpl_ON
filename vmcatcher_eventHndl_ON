@@ -235,7 +235,7 @@ def DisableExpiredImageID(OldImageID, vmcatcher_dc_identifier, log):
     time_zone = time.strftime("%z-%Z")
     date = datetime.utcnow().strftime("%Y-%m-%d_%H-%M-%S")
 
-    command = "oneimage rename %s '%s %s_%s'" % (OldImageID, vmcatcher_dc_identifier, date, time_zone)
+    command = "oneimage rename %s '%s_EXPIRED_%s_%s'" % (OldImageID, vmcatcher_dc_identifier, date, time_zone)
     os.system(command)
     log.info("Renaming the image as UID + date: %s" % (command))
 

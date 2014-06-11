@@ -1,2 +1,3 @@
 include vmcatcher-cron.cfg
-
+include ChangeLog
+include LICENSE
