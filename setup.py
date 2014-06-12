@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+import os
 from sys import version_info
 if version_info < (2, 6):
 	from distutils.core import setup
@@ -20,5 +21,10 @@ setup(name='vmcatcher_eventHndlExpl',
     author_email="grid-admin@cesga.es",
     url="www.cesga.es",
     scripts=['vmcatcher_eventHndl_ON'],
-    data_files=[('/usr/share/doc/vmcatcher-%s/examples/'% (version), ['vmcatcher-cron.cfg', 'README.md', 'ChangeLog', 'LICENSE'])]
+    # data files modified on 12/06/14 in order to allows virtual environments to be installed still  
+#    data_files=[('/usr/share/doc/vmcatcher-%s/examples/'% (version), ['vmcatcher-cron.cfg', 'README.md', 'ChangeLog', 'LICENSE'])]
+    data_files_installdir = "/usr/share/doc/vmcatcher-%s/examples/" % (version)
+    if "VIRTUAL_ENV" in os.environ:
+        data_files_installdir = 'doc'
+    data_files=[(data_files_installdir,['vmcatcher-cron.cfg','README.md','ChangeLog','LICENSE'])]
 )
