@@ -13,6 +13,9 @@ else:
 
 
 version = "0.0.5"
+data_files_installdir = "/usr/share/doc/vmcatcher-%s/examples/" % (version)
+if "VIRTUAL_ENV" in os.environ:
+    data_files_installdir = 'doc'
 
 setup(name='vmcatcher_eventHndlExpl',
     version=version,
@@ -23,8 +26,5 @@ setup(name='vmcatcher_eventHndlExpl',
     scripts=['vmcatcher_eventHndl_ON'],
     # data files modified on 12/06/14 in order to allows virtual environments to be installed still  
 #    data_files=[('/usr/share/doc/vmcatcher-%s/examples/'% (version), ['vmcatcher-cron.cfg', 'README.md', 'ChangeLog', 'LICENSE'])]
-    data_files_installdir = "/usr/share/doc/vmcatcher-%s/examples/" % (version)
-    if "VIRTUAL_ENV" in os.environ:
-        data_files_installdir = 'doc'
     data_files=[(data_files_installdir,['vmcatcher-cron.cfg','README.md','ChangeLog','LICENSE'])]
 )
