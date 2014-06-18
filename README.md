@@ -17,7 +17,7 @@ Requirements
 
 Release notes
 ------------
- * It can be found more information about the release in the ChangeLog file, [ChangeLog](http://github.com/grid-admin/vmcatcher_eventHndlExpl_ON/blob/master/ChangeLog)
+ * It can be found more information about current release in the following ChangeLog file, [ChangeLog](http://github.com/grid-admin/vmcatcher_eventHndlExpl_ON/blob/master/ChangeLog)
 
 vmcatcher_eventHndl_ON version 0.0.4 incorporates the following features:
 

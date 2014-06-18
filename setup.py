@@ -12,7 +12,7 @@ else:
         	from setuptools import setup, find_packages
 
 
-version = "0.0.5"
+version = "0.0.6"
 data_files_installdir = "/usr/share/doc/vmcatcher-%s/examples/" % (version)
 if "VIRTUAL_ENV" in os.environ:
     data_files_installdir = 'doc'

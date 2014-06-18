@@ -1,5 +1,12 @@
 Changelog
 
+vmcatcher_eventHndl_ON-0.0.6
+ * New changes introduced by Boris Parak from CESNET:
+  * It is checked if there is a previous image version before attempting to upload a new version for the image. If there is a previous version it means that this image has expired and therefore
+  * it is disabled before attempting to upload a new version for the image. Previous image version is disabled by changing its user, group and permissions to oneadmin and disabling the image
+  * in OpenNebula (if it is possible)
+  * The chown and chmod to configure the same user and group which had the previous version for the image are done separately in order to handle partial failures.
+
 vmcatcher_eventHndl_ON-0.0.5
  * Added a LICENSE file
  * Adedd a ChangeLog file
