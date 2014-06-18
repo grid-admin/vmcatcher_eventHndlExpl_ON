@@ -444,6 +444,11 @@ def HandleAvailablePostfix(generator):
     except:
         log.info("There is not a previous image with the same UUID in the OpenNebula infrastructure")
 
+    # OLD_IMAGE_ID is different from "-1" it means that we have found a previous version for the image
+    if OldImageID != -1:
+        # We disable previous image version by changing the permissions to oneadmin and disabling the image in OpenNebula (if it is possible)
+        DisableExpiredImageID(OldImageID, vmcatcher_dc_identifier, log)
+
     ## Creating the image on ON - Upload the image to the OpenNebula infrastructure 
     ## command get this output ID: 482, it is because we parse it for get only the ID, for example "482"
     # TODO: To improve by getting the imageID for the new image with a function
@@ -455,27 +460,26 @@ def HandleAvailablePostfix(generator):
         log.error("It was not possible to create the image in the OpenNebula infrastructure: %s" % (command))
         sys.exit(2)
 
-    # OLD_IMAGE_ID is different from "-1" it means that we have found a previous version for the image 
-    if OldImageID != -1:
-        # We disable previous image version by changing the permissions to oneadmin and disabling the image in OpenNebula (if it is possible)
-        DisableExpiredImageID(OldImageID, vmcatcher_dc_identifier, log)
+    if OldImageID != -1 and newImageID != -1:
 
-        if newImageID != -1: 
+        # We configure the same user, group, permissions which had the previous version for the image
+        command = "oneimage chown %s %s" % (newImageID, userUID)
+        if os.system(command) == 0:
+            log.info("Setting up the right user for the image: %s" % (command))
 
-            # We configure the same user, group, permissions which had the previous version for the image
-            command = "oneimage chown %s %s %s" % (newImageID, userUID, groupGID)
+        command = "oneimage chgrp %s %s" % (newImageID, groupGID)
+        if os.system(command) == 0:
+            log.info("Setting up the right group for the image: %s" % (command))
+
+        command = "oneimage chmod %s %s%s%s" % (newImageID, owner_permissions, group_permissions, other_permissions)
+        if os.system(command) == 0:
+            log.info("Setting up the right permissions for this image: %s" % (command))
+
+        # If the previous (old) image has the status 3, it means that previous image had been disabled so we disable the new image too
+        if stateID == '3':
+            command = "oneimage disable %s" % (newImageID)
             if os.system(command) == 0:
-                log.info("Setting up the right user and group for the image: %s" % (command))
-
-            command = "oneimage chmod %s %s%s%s" % (newImageID, owner_permissions, group_permissions, other_permissions)
-            if os.system(command) == 0:
-                log.info("Setting up the right permissions for this image: %s" % (command))
-
-            # If the previous (old) image has the status 3, it means that previous image had been disabled so we disable the new image too
-            if stateID == '3':
-                command = "oneimage disable %s" % (newImageID)
-                if os.system(command) == 0:
-                    log.info("Disabling the new image because we have detected that previous version for the image is in disabled status: %s" % (command))
+                log.info("Disabling the new image because we have detected that previous version for the image is in disabled status: %s" % (command))
              
 def main():
     reload(sys)
