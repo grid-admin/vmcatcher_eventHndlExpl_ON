@@ -488,20 +488,28 @@ def HandleAvailablePostfix(generator):
         command = "oneimage chown %s %s" % (newImageID, userUID)
         if os.system(command) == 0:
             log.info("Setting up the right user for the image: %s" % (command))
+        else:
+            log.error("Failed when setting up the right user for the image: %s" % (command))
 
         command = "oneimage chgrp %s %s" % (newImageID, groupGID)
         if os.system(command) == 0:
             log.info("Setting up the right group for the image: %s" % (command))
+        else:
+            log.error("Failed when setting up the right group for the image: %s" % (command))
 
         command = "oneimage chmod %s %s%s%s" % (newImageID, owner_permissions, group_permissions, other_permissions)
         if os.system(command) == 0:
             log.info("Setting up the right permissions for this image: %s" % (command))
+        else:
+            log.error("Failed when setting up the right permissions for this image: %s" % (command))
 
         # If the previous (old) image has the status 3, it means that previous image had been disabled so we disable the new image too
         if stateID == '3':
             command = "oneimage disable %s" % (newImageID)
             if os.system(command) == 0:
                 log.info("Disabling the new image because we have detected that previous version for the image is in disabled status: %s" % (command))
+            else:
+                log.error("Failed when disabling the new image because we have detected that previous version for the image is in disabled status: %s" % (command))
 
 def main():
     reload(sys)
