@@ -515,7 +515,7 @@ def main():
     reload(sys)
     sys.setdefaultencoding('utf-8')
     log = logging.getLogger("main")
-    p = optparse.OptionParser(version = "%prog " + "0.0.1")
+    p = optparse.OptionParser(version = "%prog " + "0.0.6")
     p.add_option('--generator',  action ='store',help='Set the dictionary Generator.', metavar='minium')
     p.add_option('--verbose', action ='count',help='Change global log level, increasing log output.', metavar='LOGFILE')
     p.add_option('--quiet', action ='count',help='Change global log level, decreasing log output.', metavar='LOGFILE')
