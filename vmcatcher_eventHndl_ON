@@ -77,9 +77,13 @@ def getUidGidforImageID(uidList, gidList):
     # We get the UID and GID for the image which we are looking for
     for uid in uidList:
         userUID = uid.toxml().replace('<UID>','').replace('</UID>','')
+        # TODO: fix this properly, only the first UID element should be selected
+        break
 
     for gid in gidList:
         groupGID = gid.toxml().replace('<GID>','').replace('</GID>','')
+        # TODO: fix this properly, only the first GID element should be selected
+        break
 
     if 'userUID' in locals():
         # It returns the UID and the GID for the image
