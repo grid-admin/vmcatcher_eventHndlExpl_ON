@@ -290,8 +290,7 @@ def getImageListXML(log):
     if 'xmldoc' in locals():
         return (xmldoc)
 
-def HandleExpirePostfix(generator):
-    log = logging.getLogger("HandleExpirePostfix")
+def HandleExpirePostfix(generator, log):
     ON_Image_ID = -1
 
     # We get oneimage list in XML
@@ -385,8 +384,7 @@ def UntarFile(imageFile,log,extractTarPath):
     else:
         log.error("%s is not a tarfile." % (imageFile))
 
-def HandleAvailablePostfix(generator):
-    log = logging.getLogger("HandelAvailablePostfix")
+def HandleAvailablePostfix(generator, log):
     # where vmcatcher_cache_dir=/home/vmcatcher_cache and vmcatcher_dc_identifier is the ID for the VM
     vmcatcher_cache_dir = generator['VMCATCHER_CACHE_DIR_CACHE']
     vmcatcher_dc_identifier = generator['VMCATCHER_EVENT_DC_IDENTIFIER']
@@ -561,14 +559,13 @@ def main():
 
     caseDict = {
             "AvailablePostfix" : HandleAvailablePostfix,
-            "ExpirePosfix" : HandleExpirePostfix, # Backward compatability
             "ExpirePostfix" : HandleExpirePostfix # Forward compatability
         }
 
     log.debug("Processing event '%s'" % (generator['VMCATCHER_EVENT_TYPE']))
     if generator['VMCATCHER_EVENT_TYPE'] in caseDict.keys():
         hdlFunct = caseDict[generator['VMCATCHER_EVENT_TYPE']]
-        hdlFunct(generator)
+        hdlFunct(generator, log)
     else:
         log.warning("Ignoring event '%s'" % (generator['VMCATCHER_EVENT_TYPE']))
 
