@@ -193,6 +193,8 @@ def getUserGroupPermissionsImageID(xmldoc, vmcatcherId):
         for id in idList:
             # where imageId = returns the ID for the image, for example: 460
             imageId = id.toxml().replace('<ID>','').replace('</ID>','')
+            # TODO: fix this properly, only the first ID element should be selected
+            break
 
         uidList = node.getElementsByTagName("UID")
         gidList = node.getElementsByTagName("GID")
