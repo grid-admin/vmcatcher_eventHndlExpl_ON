@@ -253,7 +253,7 @@ def DisableExpiredImageID(OldImageID, vmcatcher_dc_identifier, log):
     if os.system(command) == 0:
         log.info("Changing the permissions for the image to user oneadmin: %s" % (command))
     else:
-        log.error("Failed when changing the permissions for the image to user oneadmin: %s" % (command))
+        log.warning("Failed when changing the permissions for the image to user oneadmin: %s" % (command))
 
     # oneimage chgrp <range|imageid_list> <groupid> - Changes the Image group
     # oneimage chgrp 481 107
@@ -261,7 +261,7 @@ def DisableExpiredImageID(OldImageID, vmcatcher_dc_identifier, log):
     if os.system(command) == 0:
         log.info("Changing the permissions for the image to group oneadmin: %s" % (command))
     else:
-        log.error("Failed changing the permissions for the image to group oneadmin: %s" % (command))
+        log.warning("Failed changing the permissions for the image to group oneadmin: %s" % (command))
 
     # oneimage chmod <range|imageid_list> <octet> - Changes the Image permissions
     # oneimage chmod 481 600
@@ -489,13 +489,13 @@ def HandleAvailablePostfix(generator):
         if os.system(command) == 0:
             log.info("Setting up the right user for the image: %s" % (command))
         else:
-            log.error("Failed when setting up the right user for the image: %s" % (command))
+            log.warning("Failed when setting up the right user for the image: %s" % (command))
 
         command = "oneimage chgrp %s %s" % (newImageID, groupGID)
         if os.system(command) == 0:
             log.info("Setting up the right group for the image: %s" % (command))
         else:
-            log.error("Failed when setting up the right group for the image: %s" % (command))
+            log.warning("Failed when setting up the right group for the image: %s" % (command))
 
         command = "oneimage chmod %s %s%s%s" % (newImageID, owner_permissions, group_permissions, other_permissions)
         if os.system(command) == 0:
