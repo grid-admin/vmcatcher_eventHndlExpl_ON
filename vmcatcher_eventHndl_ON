@@ -276,7 +276,7 @@ def DisableExpiredImageID(OldImageID, vmcatcher_dc_identifier, log):
     if os.system(command) == 0:
         log.info("Disabling the image: %s" % (command))
     else:
-        log.warn("Failed disabling the image (it's probably OK): %s" % (command))
+        log.warning("Failed disabling the image (it's probably OK): %s" % (command))
 
 def getImageListXML(log):
     # This function is to get the image list in XML so this list can be used in several functions
