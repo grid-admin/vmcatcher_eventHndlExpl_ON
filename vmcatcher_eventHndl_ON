@@ -24,7 +24,7 @@ import fnmatch
 import shutil
 
 
-LOGGING_FORMAT = "%(asctime)s;%(levelname)8s; %(name)s; %(funcName)s -- %(message)s"
+LOGGING_FORMAT = "%(asctime)s;%(levelname)8s; vmcatcher_eventHndl_ON; %(funcName)s -- %(message)s"
 
 
 EnvEvent = set(['VMCATCHER_EVENT_TYPE',
