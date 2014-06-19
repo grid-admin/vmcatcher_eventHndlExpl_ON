@@ -44,7 +44,7 @@ EnvEvent = set(['VMCATCHER_EVENT_TYPE',
     'VMCATCHER_EVENT_TYPE',
     'VMCATCHER_EVENT_IL_DC_IDENTIFIER',
     'VMCATCHER_EVENT_FILENAME'])
-    
+
 EnvConf = set(['VMCATCHER_RDBMS',
     'VMCATCHER_CACHE_EVENT',
     'VMCATCHER_LOG_CONF',
@@ -74,19 +74,23 @@ def nullEnvDict(enviromentDict = generateEnvDict(),NullValue = ""):
     return FoundEnviroment
 
 def getUidGidforImageID(uidList, gidList):
-    # We get the UID and GID for the image which we are looking for 
+    # We get the UID and GID for the image which we are looking for
     for uid in uidList:
         userUID = uid.toxml().replace('<UID>','').replace('</UID>','')
+        # TODO: fix this properly, only the first UID element should be selected
+        break
 
     for gid in gidList:
         groupGID = gid.toxml().replace('<GID>','').replace('</GID>','')
+        # TODO: fix this properly, only the first GID element should be selected
+        break
 
     if 'userUID' in locals():
         # It returns the UID and the GID for the image
         return (userUID, groupGID)
 
 def getPermissionsforImageID(permissionsList):
-    # We get permissions for the image which we are looking for 
+    # We get permissions for the image which we are looking for
     # We convert the permissions obtained from the xml list in unix permissions, example:
 
     # <PERMISSIONS>
@@ -107,7 +111,7 @@ def getPermissionsforImageID(permissionsList):
     # The ADMIN ("A") bit adds 1 to its total (in binary 001)
 
     # Therefore, we read these permissions for the user, group and other and we do a sum for each one:
-    
+
     for perm in permissionsList:
 
         owner_use = perm.getElementsByTagName("OWNER_U")
@@ -177,14 +181,14 @@ def getPermissionsforImageID(permissionsList):
             x = 0
             if other_a_perm != "0":
                 x = 1
-       
+
         # We get the total sum for the other permissions
         other_permissions = r + w + x
 
     if 'owner_permissions' in locals():
         # It returns the user, group and other permissions for the image in unix format
         return (owner_permissions, group_permissions, other_permissions)
-  
+
 def getUserGroupPermissionsImageID(xmldoc, vmcatcherId):
     # where vmcatcherId = vmcatcher_dc_identifier = 93084776-1176-4849-95dc-cc7a15f2ce97
     # and xmldoc is the output for oneimage list in XML format
@@ -193,7 +197,9 @@ def getUserGroupPermissionsImageID(xmldoc, vmcatcherId):
         for id in idList:
             # where imageId = returns the ID for the image, for example: 460
             imageId = id.toxml().replace('<ID>','').replace('</ID>','')
-       
+            # TODO: fix this properly, only the first ID element should be selected
+            break
+
         uidList = node.getElementsByTagName("UID")
         gidList = node.getElementsByTagName("GID")
         userUID, groupGID = getUidGidforImageID(uidList, gidList)
@@ -213,7 +219,7 @@ def getUserGroupPermissionsImageID(xmldoc, vmcatcherId):
                 # where catcherId = returns the UID for the image, for example: 47404daf-a97c-4636-bacb-e78a551c1e75
                 catcherId = cId.toxml().replace('<VMCATCHER_EVENT_DC_IDENTIFIER>','').replace('</VMCATCHER_EVENT_DC_IDENTIFIER>','').replace('<![CDATA[','').replace(']]>','')
                 if catcherId == vmcatcherId:
-                    # if we find the image that we are looking for in the image list, 
+                    # if we find the image that we are looking for in the image list,
                     # we take the following data for this which coincide with the vmcatcher_dc_identifier(vmcatcherId) inside the bucle for, for example: 460
                     # We get also the UID, GID, permissions and status (enabled, disabled, etc..) for this image
                     ON_image_id = imageId
@@ -224,7 +230,7 @@ def getUserGroupPermissionsImageID(xmldoc, vmcatcherId):
                     otherrwx = other_permissions
                     statusID = statusImage
 
-    # we check if the variable is defined, in other words, if it has some value, if yes, we return the content for the variable, otherwise we don't return it: \ 
+    # we check if the variable is defined, in other words, if it has some value, if yes, we return the content for the variable, otherwise we don't return it: \
     # http://stackoverflow.com/questions/843277/how-do-i-check-if-a-variable-exists-in-python
     if 'ON_image_id' in locals():
         #return (ON_image_id, userUID, groupGID, owner_permissions, group_permissions, other_permissions)
@@ -236,25 +242,41 @@ def DisableExpiredImageID(OldImageID, vmcatcher_dc_identifier, log):
     date = datetime.utcnow().strftime("%Y-%m-%d_%H-%M-%S")
 
     command = "oneimage rename %s '%s_EXPIRED_%s_%s'" % (OldImageID, vmcatcher_dc_identifier, date, time_zone)
-    os.system(command)
-    log.info("Renaming the image as UID + date: %s" % (command))
+    if os.system(command) == 0:
+        log.info("Renaming the image as UID + date: %s" % (command))
+    else:
+        log.error("Failed when renaming the image as UID + date: %s" % (command))
 
     # oneimage chown <range|imageid_list> <userid> [<groupid>] - Changes the Image owner and group
     # oneimage chown 481 231 107
-    command = "oneimage chown %s oneadmin oneadmin" % (OldImageID)
-    os.system(command)
-    log.info("Changing the permissions for the image to user oneadmin and group oneadmin: %s" % (command))
+    command = "oneimage chown %s oneadmin" % (OldImageID)
+    if os.system(command) == 0:
+        log.info("Changing the permissions for the image to user oneadmin: %s" % (command))
+    else:
+        log.error("Failed when changing the permissions for the image to user oneadmin: %s" % (command))
+
+    # oneimage chgrp <range|imageid_list> <groupid> - Changes the Image group
+    # oneimage chgrp 481 107
+    command = "oneimage chgrp %s oneadmin" % (OldImageID)
+    if os.system(command) == 0:
+        log.info("Changing the permissions for the image to group oneadmin: %s" % (command))
+    else:
+        log.error("Failed changing the permissions for the image to group oneadmin: %s" % (command))
 
     # oneimage chmod <range|imageid_list> <octet> - Changes the Image permissions
     # oneimage chmod 481 600
     command = "oneimage chmod %s 700" % (OldImageID)
-    log.info("Giving only permissions for the oneadmin user to the image: %s" % (command))
-    os.system(command)
+    if os.system(command) == 0:
+        log.info("Giving only permissions for the oneadmin user to the image: %s" % (command))
+    else:
+        log.error("Failed giving only permissions for the oneadmin user to the image: %s" % (command))
 
     # If it is possible (if the image dos not have VMs running), we disable the image
     command = "oneimage disable %s" % (OldImageID)
-    log.info("Disabling the image: %s" % (command))
-    os.system(command)
+    if os.system(command) == 0:
+        log.info("Disabling the image: %s" % (command))
+    else:
+        log.warning("Failed disabling the image (it's probably OK): %s" % (command))
 
 def getImageListXML(log):
     # This function is to get the image list in XML so this list can be used in several functions
@@ -275,17 +297,17 @@ def HandleExpirePostfix(generator):
     # We get oneimage list in XML
     xmldoc = getImageListXML(log)
     vmcatcher_dc_identifier = generator['VMCATCHER_EVENT_DC_IDENTIFIER']
-    # getUserGroupPermissionsImageID (xmldoc,vmcatcher_dc_identifier) returns the OpenNebula image ID, UID, GID, and permissions for the image that 
+    # getUserGroupPermissionsImageID (xmldoc,vmcatcher_dc_identifier) returns the OpenNebula image ID, UID, GID, and permissions for the image that
     # we are looking for with vmcatcher_dc_identifier inside the oneimage list in xml (xmldoc), for example: 460
     # Therefore, if there is a new version for the image, we can assing the same user, group and permissions for the new version
     try:
-        ON_Image_ID, userUID, groupGID, owner_permissions, group_permissions, other_permissions, status = getUserGroupPermissionsImageID(xmldoc, vmcatcher_dc_identifier) 
+        ON_Image_ID, userUID, groupGID, owner_permissions, group_permissions, other_permissions, status = getUserGroupPermissionsImageID(xmldoc, vmcatcher_dc_identifier)
     except:
         log.info("There is not a previous image with the same UUID in the OpenNebula infrastructure")
 
     # We make sure that the image is in status unsusbribed what it means it is in a status different from "3" (susbribed):
     # "2" is the status for unsusbribed images and "3" for images to which we are subscribed
-    # TODO: This needs to be improved 
+    # TODO: This needs to be improved
     try:
         command = "vmcatcher_image -l | grep %s | awk '$2 ~ 3 {print $1}'" % (vmcatcher_dc_identifier)
         status, status_imageID = commands.getstatusoutput(command)
@@ -297,8 +319,8 @@ def HandleExpirePostfix(generator):
         # If we really executed an unsuscribided for the image, we rename it and change its permissions to oneadmin in order to disable it
         if vmcatcher_dc_identifier != status_imageID:
             DisableExpiredImageID(ON_Image_ID, vmcatcher_dc_identifier, log)
-            log.info("Disabling the image because we have detected that the image has expired") 
- 
+            log.info("Disabling the image because we have detected that the image has expired")
+
     log.info(json.dumps(generator))
 
 def UntarFile(imageFile,log,extractTarPath):
@@ -330,7 +352,7 @@ def UntarFile(imageFile,log,extractTarPath):
             log.info("Converting %s to raw format." % (imageFileInRawFormat))
             ## command = "qemu-img convert -O qcow2 %s %s.qcow2" % (imageFileInRawFormat,imageFileInRawFormat)
             command = "qemu-img convert -O raw %s %s.raw" % (imageFileInRawFormat,imageFileInRawFormat)
-            # command = for example: 
+            # command = for example:
             ## qemu-img convert -O raw /home/vmcatcher_cache/templates/a1e2ec9c-3f2b-4c11-8723-2928cda5ccd9/ubuntu_12-disk1.vmdk /home/vmcatcher_cache/templates/a1e2ec9c.../ubuntu_12-disk1.vmdk.raw
             ## At first, we converted the image in qcow, but we observed that the DOM-0 needed a recent version of qemu tool to run correctly the image, so we decided to convert the image better in raw format.
             if os.system(command) == 0:
@@ -351,7 +373,7 @@ def UntarFile(imageFile,log,extractTarPath):
                     #         log.error("It was not possible to delete the following temporary directory: %s" % (extractTarPath))
                     # else:    ## Show an error ##
                     #    log.error("Temporary directory cannot be found %s, probably this image is not an OVA image" % (extractTarPath))
- 
+
             else:
                 # In this case we will include the original OVA file into ON datastore as it is
                 log.error("It was not possible to convert the image file %s in RAW format" % (imageFile))
@@ -391,7 +413,7 @@ def HandleAvailablePostfix(generator):
         except:
             log.error("It was not possible to extract/convert the OVA image file %s in RAW format" % (imageFile))
 
-    ## Creating an OpenNebula template file for uploading the image to OpenNebula  
+    ## Creating an OpenNebula template file for uploading the image to OpenNebula
     ## Example: vmcatcher_cache_dir=/home/vmcatcher_cache and vmcatcher_dc_identifier is the ID for the VM - /home/vmcatcher_cache/templates/a1e2ec9c-3f2b-4c11-8723-2928cda5ccd9
     templateFile = "%s/templates/%s.one" % (vmcatcher_cache_dir,vmcatcher_dc_identifier)
     ## Where vmcatcher_dc_title is the name for the original image to be uploaded to the OpenNebula infrastructure, for example: ubuntu12.04
@@ -431,16 +453,16 @@ def HandleAvailablePostfix(generator):
     newImageID = -1
 
     ## HandleExpirePostfix(generator) checks if there is previous/current version for the image to which we are subscribed. If there is a new image,we get the current imageID,
-    # UID, GID and permissions for this current image. So then we can set the same UID, GID and persmissions to the new image. 
+    # UID, GID and permissions for this current image. So then we can set the same UID, GID and persmissions to the new image.
 
     # We get oneimage list in XML
     try:
         xmldoc = getImageListXML(log)
     except:
-        log.error("It was not possible to get the image list in XML %s" % (command)) 
+        log.error("It was not possible to get the image list in XML %s" % (command))
 
     try:
-        OldImageID, userUID, groupGID, owner_permissions, group_permissions, other_permissions, stateID = getUserGroupPermissionsImageID(xmldoc, vmcatcher_dc_identifier) 
+        OldImageID, userUID, groupGID, owner_permissions, group_permissions, other_permissions, stateID = getUserGroupPermissionsImageID(xmldoc, vmcatcher_dc_identifier)
     except:
         log.info("There is not a previous image with the same UUID in the OpenNebula infrastructure")
 
@@ -449,13 +471,13 @@ def HandleAvailablePostfix(generator):
         # We disable previous image version by changing the permissions to oneadmin and disabling the image in OpenNebula (if it is possible)
         DisableExpiredImageID(OldImageID, vmcatcher_dc_identifier, log)
 
-    ## Creating the image on ON - Upload the image to the OpenNebula infrastructure 
+    ## Creating the image on ON - Upload the image to the OpenNebula infrastructure
     ## command get this output ID: 482, it is because we parse it for get only the ID, for example "482"
     # TODO: To improve by getting the imageID for the new image with a function
     try:
         command = "oneimage create -d default %s | cut -d ':' -f 2" % (templateFile)
         log.info("Instantiating template: %s" % (command))
-        status, newImageID = commands.getstatusoutput(command) 
+        status, newImageID = commands.getstatusoutput(command)
     except IOError:
         log.error("It was not possible to create the image in the OpenNebula infrastructure: %s" % (command))
         sys.exit(2)
@@ -466,32 +488,40 @@ def HandleAvailablePostfix(generator):
         command = "oneimage chown %s %s" % (newImageID, userUID)
         if os.system(command) == 0:
             log.info("Setting up the right user for the image: %s" % (command))
+        else:
+            log.error("Failed when setting up the right user for the image: %s" % (command))
 
         command = "oneimage chgrp %s %s" % (newImageID, groupGID)
         if os.system(command) == 0:
             log.info("Setting up the right group for the image: %s" % (command))
+        else:
+            log.error("Failed when setting up the right group for the image: %s" % (command))
 
         command = "oneimage chmod %s %s%s%s" % (newImageID, owner_permissions, group_permissions, other_permissions)
         if os.system(command) == 0:
             log.info("Setting up the right permissions for this image: %s" % (command))
+        else:
+            log.error("Failed when setting up the right permissions for this image: %s" % (command))
 
         # If the previous (old) image has the status 3, it means that previous image had been disabled so we disable the new image too
         if stateID == '3':
             command = "oneimage disable %s" % (newImageID)
             if os.system(command) == 0:
                 log.info("Disabling the new image because we have detected that previous version for the image is in disabled status: %s" % (command))
-             
+            else:
+                log.error("Failed when disabling the new image because we have detected that previous version for the image is in disabled status: %s" % (command))
+
 def main():
     reload(sys)
     sys.setdefaultencoding('utf-8')
     log = logging.getLogger("main")
-    p = optparse.OptionParser(version = "%prog " + "0.0.1")    
+    p = optparse.OptionParser(version = "%prog " + "0.0.6")
     p.add_option('--generator',  action ='store',help='Set the dictionary Generator.', metavar='minium')
     p.add_option('--verbose', action ='count',help='Change global log level, increasing log output.', metavar='LOGFILE')
     p.add_option('--quiet', action ='count',help='Change global log level, decreasing log output.', metavar='LOGFILE')
     p.add_option('--log-config', action ='store',help='Logfile configuration file, (overrides command line).', metavar='LOGFILE')
     p.add_option('--logcfg', action ='store',help='Logfile configuration file.', metavar='LOGCFGFILE')
-    
+
     options, arguments = p.parse_args()
     if options.logcfg:
         if os.path.isfile(str(options.logfile)):
@@ -502,14 +532,14 @@ def main():
             log.error("Logfile configuration file '%s' was not found." % (options.logfile))
             sys.exit(1)
     else:
-        logging.basicConfig(level=logging.INFO)    
+        logging.basicConfig(level=logging.INFO)
     outputDict = None
     generator = nullEnvDict()
     logFile = None
-    
+
     if 'VMCHNDL_ON_LOG_CONF' in os.environ:
         logFile = os.environ['VMCHNDL_ON_LOG_CONF']
-    
+
     # Set up log file
     LoggingLevel = logging.WARNING
     LoggingLevelCounter = 2
@@ -533,7 +563,7 @@ def main():
         LoggingLevel = logging.FATAL
     if LoggingLevelCounter >= 5:
         LoggingLevel = logging.CRITICAL
-    
+
     if options.log_config:
         logFile = options.log_config
     if logFile != None:
@@ -548,9 +578,9 @@ def main():
         logging.basicConfig(level=LoggingLevel)
     log = logging.getLogger("main")
 
-    caseDict = { 
-            "AvailablePostfix" : HandleAvailablePostfix, 
-            "ExpirePosfix" : HandleExpirePostfix, # Backward compatability 
+    caseDict = {
+            "AvailablePostfix" : HandleAvailablePostfix,
+            "ExpirePosfix" : HandleExpirePostfix, # Backward compatability
             "ExpirePostfix" : HandleExpirePostfix # Forward compatability
         }
     ###print(generator['VMCATCHER_EVENT_TYPE'])
