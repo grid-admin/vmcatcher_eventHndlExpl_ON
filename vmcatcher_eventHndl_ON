@@ -238,31 +238,41 @@ def DisableExpiredImageID(OldImageID, vmcatcher_dc_identifier, log):
     date = datetime.utcnow().strftime("%Y-%m-%d_%H-%M-%S")
 
     command = "oneimage rename %s '%s_EXPIRED_%s_%s'" % (OldImageID, vmcatcher_dc_identifier, date, time_zone)
-    os.system(command)
-    log.info("Renaming the image as UID + date: %s" % (command))
+    if os.system(command) == 0:
+        log.info("Renaming the image as UID + date: %s" % (command))
+    else:
+        log.error("Failed when renaming the image as UID + date: %s" % (command))
 
     # oneimage chown <range|imageid_list> <userid> [<groupid>] - Changes the Image owner and group
     # oneimage chown 481 231 107
     command = "oneimage chown %s oneadmin" % (OldImageID)
-    os.system(command)
-    log.info("Changing the permissions for the image to user oneadmin: %s" % (command))
+    if os.system(command) == 0:
+        log.info("Changing the permissions for the image to user oneadmin: %s" % (command))
+    else:
+        log.error("Failed when changing the permissions for the image to user oneadmin: %s" % (command))
 
     # oneimage chgrp <range|imageid_list> <groupid> - Changes the Image group
     # oneimage chgrp 481 107
     command = "oneimage chgrp %s oneadmin" % (OldImageID)
-    os.system(command)
-    log.info("Changing the permissions for the image to group oneadmin: %s" % (command))
+    if os.system(command) == 0:
+        log.info("Changing the permissions for the image to group oneadmin: %s" % (command))
+    else:
+        log.error("Failed changing the permissions for the image to group oneadmin: %s" % (command))
 
     # oneimage chmod <range|imageid_list> <octet> - Changes the Image permissions
     # oneimage chmod 481 600
     command = "oneimage chmod %s 700" % (OldImageID)
-    log.info("Giving only permissions for the oneadmin user to the image: %s" % (command))
-    os.system(command)
+    if os.system(command) == 0:
+        log.info("Giving only permissions for the oneadmin user to the image: %s" % (command))
+    else:
+        log.error("Failed giving only permissions for the oneadmin user to the image: %s" % (command))
 
     # If it is possible (if the image dos not have VMs running), we disable the image
     command = "oneimage disable %s" % (OldImageID)
-    log.info("Disabling the image: %s" % (command))
-    os.system(command)
+    if os.system(command) == 0:
+        log.info("Disabling the image: %s" % (command))
+    else:
+        log.warn("Failed disabling the image (it's probably OK): %s" % (command))
 
 def getImageListXML(log):
     # This function is to get the image list in XML so this list can be used in several functions
