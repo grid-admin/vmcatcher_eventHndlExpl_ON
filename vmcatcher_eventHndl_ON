@@ -514,81 +514,63 @@ def HandleAvailablePostfix(generator):
 def main():
     reload(sys)
     sys.setdefaultencoding('utf-8')
-    log = logging.getLogger("main")
+
     p = optparse.OptionParser(version = "%prog " + "0.0.6")
-    p.add_option('--generator',  action ='store',help='Set the dictionary Generator.', metavar='minium')
-    p.add_option('--verbose', action ='count',help='Change global log level, increasing log output.', metavar='LOGFILE')
-    p.add_option('--quiet', action ='count',help='Change global log level, decreasing log output.', metavar='LOGFILE')
-    p.add_option('--log-config', action ='store',help='Logfile configuration file, (overrides command line).', metavar='LOGFILE')
-    p.add_option('--logcfg', action ='store',help='Logfile configuration file.', metavar='LOGCFGFILE')
+    p.add_option('-g', '--generator', action ='store', type="int", help='Set the dictionary Generator.', metavar='MINIMUM', dest='generator')
+    p.add_option('-v', '--verbose', action ='store_true', help='Change global log level, increasing log output.', dest='debug', default=True)
+    p.add_option('-q', '--quiet', action ='store_false', help='Change global log level, decreasing log output.', dest='debug')
+    p.add_option('-l', '--log-config-file', action ='store', type="string", help='Logging configuration file (overrides command line).', metavar='LOG_CONFIG_FILE', dest='log_config_file')
+    p.add_option('-o', '--log-file', action ='store', type="string", help='Log output file.', metavar='LOG_FILE', dest='log_file')
 
     options, arguments = p.parse_args()
-    if options.logcfg:
-        if os.path.isfile(str(options.logfile)):
-            logging.config.fileConfig(options.logfile)
+
+    # Set up logging
+    log_config_file = None
+    if options.debug:
+        logging_level = logging.DEBUG
+    else:
+        logging_level = logging.ERROR
+
+    logging_file = None
+    if options.log_file:
+        logging_file = options.log_file
+    elif 'VMCHNDL_ON_LOG_FILE' in os.environ:
+        logging_file = os.environ['VMCHNDL_ON_LOG_FILE']
+
+    if options.log_config_file:
+        log_config_file = options.log_config_file
+    elif 'VMCHNDL_ON_LOG_CONF' in os.environ:
+        log_config_file = os.environ['VMCHNDL_ON_LOG_CONF']
+
+    if log_config_file:
+        if os.path.isfile(log_config_file):
+            logging.config.fileConfig(log_config_file)
         else:
-            logging.basicConfig(level=logging.INFO)
-            log = logging.getLogger("main")
-            log.error("Logfile configuration file '%s' was not found." % (options.logfile))
+            sys.stderr.write("Logfile configuration file was not found: '%s'" % (log_config_file))
             sys.exit(1)
     else:
-        logging.basicConfig(level=logging.INFO)
+        if logging_file:
+            logging.basicConfig(filename=logging_file, level=logging_level)
+        else:
+            logging.basicConfig(level=logging_level)
+
     outputDict = None
     generator = nullEnvDict()
-    logFile = None
 
-    if 'VMCHNDL_ON_LOG_CONF' in os.environ:
-        logFile = os.environ['VMCHNDL_ON_LOG_CONF']
-
-    # Set up log file
-    LoggingLevel = logging.WARNING
-    LoggingLevelCounter = 2
-    if options.verbose:
-        LoggingLevelCounter = LoggingLevelCounter - options.verbose
-        if options.verbose == 1:
-            LoggingLevel = logging.INFO
-        if options.verbose == 2:
-            LoggingLevel = logging.DEBUG
-    if options.quiet:
-        LoggingLevelCounter = LoggingLevelCounter + options.quiet
-    if LoggingLevelCounter <= 0:
-        LoggingLevel = logging.DEBUG
-    if LoggingLevelCounter == 1:
-        LoggingLevel = logging.INFO
-    if LoggingLevelCounter == 2:
-        LoggingLevel = logging.WARNING
-    if LoggingLevelCounter == 3:
-        LoggingLevel = logging.ERROR
-    if LoggingLevelCounter == 4:
-        LoggingLevel = logging.FATAL
-    if LoggingLevelCounter >= 5:
-        LoggingLevel = logging.CRITICAL
-
-    if options.log_config:
-        logFile = options.log_config
-    if logFile != None:
-        if os.path.isfile(str(options.log_config)):
-            logging.config.fileConfig(options.log_config)
-        else:
-            logging.basicConfig(level=LoggingLevel)
-            log = logging.getLogger("main")
-            log.error("Logfile configuration file '%s' was not found." % (options.log_config))
-            sys.exit(1)
-    else:
-        logging.basicConfig(level=LoggingLevel)
-    log = logging.getLogger("main")
+    log = logging.getLogger('vmcatcher_eventHndl_ON:main')
 
     caseDict = {
             "AvailablePostfix" : HandleAvailablePostfix,
             "ExpirePosfix" : HandleExpirePostfix, # Backward compatability
             "ExpirePostfix" : HandleExpirePostfix # Forward compatability
         }
-    ###print(generator['VMCATCHER_EVENT_TYPE'])
+
+    log.debug("Processing event '%s'" % (generator['VMCATCHER_EVENT_TYPE']))
     if generator['VMCATCHER_EVENT_TYPE'] in caseDict.keys():
         hdlFunct = caseDict[generator['VMCATCHER_EVENT_TYPE']]
         hdlFunct(generator)
     else:
-        log.debug("Ignoring event '%s'" % (generator['VMCATCHER_EVENT_TYPE']))
+        log.warning("Ignoring event '%s'" % (generator['VMCATCHER_EVENT_TYPE']))
 
 
 if __name__ == "__main__":
