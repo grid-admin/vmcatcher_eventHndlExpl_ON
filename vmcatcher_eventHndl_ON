@@ -434,8 +434,10 @@ def HandleAvailablePostfix(generator, log):
         except:
             log.fatal("It was not possible to extract/convert the OVA image file %s to RAW format" % (imageFile))
             sys.exit(2)
+    elif imgFormat in ('RAW', 'raw'):
+        log.info("The image file '%s' is in RAW format, therefore, we proceed to create the template for uploading the image to the OpenNebula infrastructure" % (imageFile))
     else:
-        log.fatal("Provided image '%s' was not in the required OVA format" % (vmcatcher_dc_identifier))
+        log.fatal("The provided image '%s' was not in the required OVA or RAW formats" % (vmcatcher_dc_identifier))
         sys.exit(2)
 
     ## Creating an OpenNebula template file for uploading the image to OpenNebula
@@ -543,7 +545,7 @@ def main():
     reload(sys)
     sys.setdefaultencoding('utf-8')
 
-    p = optparse.OptionParser(version = "%prog " + "0.0.6")
+    p = optparse.OptionParser(version = "%prog " + "0.0.7")
     p.add_option('-g', '--generator', action ='store', type="int", help='Set the dictionary Generator.', metavar='MINIMUM', dest='generator')
     p.add_option('-v', '--verbose', action ='store_true', help='Change global log level, increasing log output.', dest='debug', default=True)
     p.add_option('-q', '--quiet', action ='store_false', help='Change global log level, decreasing log output.', dest='debug')
