@@ -1,5 +1,23 @@
 Changelog
 
+vmcatcher_eventHndl_ON-0.0.7
+ * If it is checked if the image is in "OVA" or "RAW" format, if the image is in a format different from "OVA" or "RAW the handler is stopped. Images should be in one of those formats because other formats could  * not be supported at the site infrastructure. 
+ * New changes introduced by Boris Parak from CESNET:
+  * Fixed unwanted name switching in logs 	
+  * Fixed logging for commands which may fail
+  * Passing logger to handlers 	
+  * Added clean-up of unpacked & converted images 
+  * Enabling log file by default in examples
+  * The vmcatcher_eventHndl_ON script is terminated immediately after fatal errors to avoid unexpected side effects.
+  * Fixed disabling of expired images 
+  * Fixed parsing existing image templates 
+  * Fixed logging in DisableExpiredImageID()
+  * Fixed parsing existing image templates
+  * Added error logging to HandleAvailablePostfix()
+  * Bumped forgotten handler version
+  * Fixed logging method (warn -> warning)
+ *
+
 vmcatcher_eventHndl_ON-0.0.6
  * New changes introduced by Boris Parak from CESNET:
   * It is checked if there is a previous image version before attempting to upload a new version for the image. If there is a previous version it means that this image has expired and therefore
