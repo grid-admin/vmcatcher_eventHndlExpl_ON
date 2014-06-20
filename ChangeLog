@@ -1,7 +1,8 @@
 Changelog
 
 vmcatcher_eventHndl_ON-0.0.7
- * If it is checked if the image is in "OVA" or "RAW" format, if the image is in a format different from "OVA" or "RAW the handler is stopped. Images should be in one of those formats because other formats could  * not be supported at the site infrastructure. 
+ * If it is checked if the image is in "OVA" or "RAW" format, if the image is in a format different from "OVA" or "RAW the handler is stopped. Images should be
+ * in one of those formats because other formats could not be supported at the site infrastructure. 
  * New changes introduced by Boris Parak from CESNET:
   * Fixed unwanted name switching in logs 	
   * Fixed logging for commands which may fail
@@ -16,7 +17,6 @@ vmcatcher_eventHndl_ON-0.0.7
   * Added error logging to HandleAvailablePostfix()
   * Bumped forgotten handler version
   * Fixed logging method (warn -> warning)
- *
 
 vmcatcher_eventHndl_ON-0.0.6
  * New changes introduced by Boris Parak from CESNET:
