@@ -24,7 +24,7 @@ import fnmatch
 import shutil
 
 
-LOGGING_FORMAT = "%(asctime)s;%(levelname)8s; %(name)s; %(funcName)s -- %(message)s"
+LOGGING_FORMAT = "%(asctime)s;%(levelname)8s; vmcatcher_eventHndl_ON; %(funcName)s -- %(message)s"
 
 
 EnvEvent = set(['VMCATCHER_EVENT_TYPE',
@@ -253,7 +253,7 @@ def DisableExpiredImageID(OldImageID, vmcatcher_dc_identifier, log):
     if os.system(command) == 0:
         log.info("Changing the permissions for the image to user oneadmin: %s" % (command))
     else:
-        log.error("Failed when changing the permissions for the image to user oneadmin: %s" % (command))
+        log.warning("Failed when changing the permissions for the image to user oneadmin: %s" % (command))
 
     # oneimage chgrp <range|imageid_list> <groupid> - Changes the Image group
     # oneimage chgrp 481 107
@@ -261,7 +261,7 @@ def DisableExpiredImageID(OldImageID, vmcatcher_dc_identifier, log):
     if os.system(command) == 0:
         log.info("Changing the permissions for the image to group oneadmin: %s" % (command))
     else:
-        log.error("Failed changing the permissions for the image to group oneadmin: %s" % (command))
+        log.warning("Failed changing the permissions for the image to group oneadmin: %s" % (command))
 
     # oneimage chmod <range|imageid_list> <octet> - Changes the Image permissions
     # oneimage chmod 481 600
@@ -290,8 +290,8 @@ def getImageListXML(log):
     if 'xmldoc' in locals():
         return (xmldoc)
 
-def HandleExpirePostfix(generator):
-    log = logging.getLogger("HandleExpirePostfix")
+def HandleExpirePostfix(generator, log):
+    log.debug("Starting HandleExpirePostfix for '%s'" % (generator['VMCATCHER_EVENT_DC_IDENTIFIER']))
     ON_Image_ID = -1
 
     # We get oneimage list in XML
@@ -385,11 +385,21 @@ def UntarFile(imageFile,log,extractTarPath):
     else:
         log.error("%s is not a tarfile." % (imageFile))
 
-def HandleAvailablePostfix(generator):
-    log = logging.getLogger("HandelAvailablePostfix")
+def HandleAvailablePostfix(generator, log):
+    log.debug("Starting HandleAvailablePostfix for '%s'" % (generator['VMCATCHER_EVENT_DC_IDENTIFIER']))
+
     # where vmcatcher_cache_dir=/home/vmcatcher_cache and vmcatcher_dc_identifier is the ID for the VM
     vmcatcher_cache_dir = generator['VMCATCHER_CACHE_DIR_CACHE']
     vmcatcher_dc_identifier = generator['VMCATCHER_EVENT_DC_IDENTIFIER']
+
+    if not vmcatcher_cache_dir:
+        log.fatal("The VMCATCHER_CACHE_DIR_CACHE variable is empty!")
+        sys.exit(3)
+
+    if not vmcatcher_dc_identifier:
+        log.fatal("The VMCATCHER_EVENT_DC_IDENTIFIER variable is empty!")
+        sys.exit(3)
+
     imageFile = "%s/%s" % (vmcatcher_cache_dir,vmcatcher_dc_identifier)
 
     ## detect if ON templates directory exists
@@ -403,7 +413,11 @@ def HandleAvailablePostfix(generator):
     ## It also could be defined on the following way: if imgFormat == 'OVA' or imgFormat == 'ova':
     if imgFormat in ('OVA', 'ova'):
         extractTarPath = "%s/templates/%s" % (vmcatcher_cache_dir,vmcatcher_dc_identifier)
+        if os.path.exists(extractTarPath):
+           shutil.rmtree(extractTarPath)
+
         os.makedirs(extractTarPath)
+
         # UntarFile function returns the image extracted/converted in raw format, for example: /var/lib/one/pruebas_esfreire/ubuntu_12-disk1.vmdk.qcow2
         try:
             imageFileRawFormat = UntarFile(imageFile,log,extractTarPath)
@@ -411,7 +425,11 @@ def HandleAvailablePostfix(generator):
             if 'imageFileRawFormat' in locals():
                 imageFile = imageFileRawFormat
         except:
-            log.error("It was not possible to extract/convert the OVA image file %s in RAW format" % (imageFile))
+            log.fatal("It was not possible to extract/convert the OVA image file %s to RAW format" % (imageFile))
+            sys.exit(2)
+    else:
+        log.fatal("Provided image '%s' was not in the required OVA format" % (vmcatcher_dc_identifier))
+        sys.exit(2)
 
     ## Creating an OpenNebula template file for uploading the image to OpenNebula
     ## Example: vmcatcher_cache_dir=/home/vmcatcher_cache and vmcatcher_dc_identifier is the ID for the VM - /home/vmcatcher_cache/templates/a1e2ec9c-3f2b-4c11-8723-2928cda5ccd9
@@ -421,6 +439,8 @@ def HandleAvailablePostfix(generator):
     ## name = "%s %s %s" % (vmcatcher_dc_title,numerical_date,vmcatcher_dc_identifier)
     name = "%s" % (vmcatcher_dc_identifier)
     log.info("Creating template file %s" % (templateFile))
+    if os.path.isfile(templateFile):
+        os.remove(templateFile)
     try:
         with open(templateFile, "w") as tfile:
             tfile.write('NAME = "%s"\n' % (name))
@@ -446,7 +466,7 @@ def HandleAvailablePostfix(generator):
             tfile.close()
 
     except IOError:
-        log.error("It was not possible to create the following image template to upload the image to OpenNebula: %s" % (templateFile))
+        log.fatal("It was not possible to create the following image template for OpenNebula: %s" % (templateFile))
         sys.exit(2)
 
     OldImageID = -1
@@ -489,13 +509,13 @@ def HandleAvailablePostfix(generator):
         if os.system(command) == 0:
             log.info("Setting up the right user for the image: %s" % (command))
         else:
-            log.error("Failed when setting up the right user for the image: %s" % (command))
+            log.warning("Failed when setting up the right user for the image: %s" % (command))
 
         command = "oneimage chgrp %s %s" % (newImageID, groupGID)
         if os.system(command) == 0:
             log.info("Setting up the right group for the image: %s" % (command))
         else:
-            log.error("Failed when setting up the right group for the image: %s" % (command))
+            log.warning("Failed when setting up the right group for the image: %s" % (command))
 
         command = "oneimage chmod %s %s%s%s" % (newImageID, owner_permissions, group_permissions, other_permissions)
         if os.system(command) == 0:
@@ -561,14 +581,13 @@ def main():
 
     caseDict = {
             "AvailablePostfix" : HandleAvailablePostfix,
-            "ExpirePosfix" : HandleExpirePostfix, # Backward compatability
             "ExpirePostfix" : HandleExpirePostfix # Forward compatability
         }
 
     log.debug("Processing event '%s'" % (generator['VMCATCHER_EVENT_TYPE']))
     if generator['VMCATCHER_EVENT_TYPE'] in caseDict.keys():
         hdlFunct = caseDict[generator['VMCATCHER_EVENT_TYPE']]
-        hdlFunct(generator)
+        hdlFunct(generator, log)
     else:
         log.warning("Ignoring event '%s'" % (generator['VMCATCHER_EVENT_TYPE']))
 
