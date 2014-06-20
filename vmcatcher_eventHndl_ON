@@ -286,7 +286,9 @@ def getImageListXML(log):
         log.info("Getting image list: %s" % (command))
         xmldoc = minidom.parseString(result)
     except:
-        log.error("It was not possible to get the image list in XML %s" % (command))
+        log.fatal("It was not possible to get the image list in XML %s" % (command))
+        sys.exit(2)
+
     if 'xmldoc' in locals():
         return (xmldoc)
 
@@ -312,7 +314,8 @@ def HandleExpirePostfix(generator, log):
         command = "vmcatcher_image -l | grep %s | awk '$2 ~ 3 {print $1}'" % (vmcatcher_dc_identifier)
         status, status_imageID = commands.getstatusoutput(command)
     except:
-        log.error("It was not possible to get the images list from the vmcatcher_image -l command")
+        log.fatal("It was not possible to get the images list from the vmcatcher_image -l command")
+        sys.exit(2)
 
     if ON_Image_ID != -1:
         # if vmcatcher_dc_identifier != status_imageID means that the imageID has not the status "3" on vmcatcher
@@ -335,7 +338,8 @@ def UntarFile(imageFile,log,extractTarPath):
             tfile.extractall(extractTarPath)
             tfile.close()
         except:
-            log.error("The OVA image file %s cannot be open to extract its information" % (imageFile))
+            log.fatal("The OVA image file %s cannot be open to extract its information" % (imageFile))
+            sys.exit(2)
 
         # We force to take disk1 in case the image have two disks as for example: cernvm.x86_64-disk1.vmdk and cernvm.x86_64-disk2.vmdk
         image_patterns = ['*disk1.vmdk', '*disk1.vdi', '*disk1.raw', '*disk1.img', '*disk1.qcow']
@@ -376,14 +380,17 @@ def UntarFile(imageFile,log,extractTarPath):
 
             else:
                 # In this case we will include the original OVA file into ON datastore as it is
-                log.error("It was not possible to convert the image file %s in RAW format" % (imageFile))
+                log.fatal("It was not possible to convert the image file %s in RAW format" % (imageFile))
+                sys.exit(2)
 
         else:
             # In this case we will include the original OVA file into ON datastore as it is
-            log.error("qemu-img is not installed or this version does not support %s format. Please install a new qemu-img version" % (imageFile))
+            log.fatal("qemu-img is not installed or this version does not support %s format. Please install a new qemu-img version" % (imageFile))
+            sys.exit(2)
 
     else:
-        log.error("%s is not a tarfile." % (imageFile))
+        log.fatal("%s is not a tarfile." % (imageFile))
+        sys.exit(2)
 
 def HandleAvailablePostfix(generator, log):
     log.debug("Starting HandleAvailablePostfix for '%s'" % (generator['VMCATCHER_EVENT_DC_IDENTIFIER']))
@@ -479,7 +486,8 @@ def HandleAvailablePostfix(generator, log):
     try:
         xmldoc = getImageListXML(log)
     except:
-        log.error("It was not possible to get the image list in XML %s" % (command))
+        log.fatal("It was not possible to get the image list in XML %s" % (command))
+        sys.exit(2)
 
     try:
         OldImageID, userUID, groupGID, owner_permissions, group_permissions, other_permissions, stateID = getUserGroupPermissionsImageID(xmldoc, vmcatcher_dc_identifier)
@@ -581,7 +589,7 @@ def main():
 
     caseDict = {
             "AvailablePostfix" : HandleAvailablePostfix,
-            "ExpirePostfix" : HandleExpirePostfix # Forward compatability
+            "ExpirePostfix" : HandleExpirePostfix # Forward compatibility
         }
 
     log.debug("Processing event '%s'" % (generator['VMCATCHER_EVENT_TYPE']))
