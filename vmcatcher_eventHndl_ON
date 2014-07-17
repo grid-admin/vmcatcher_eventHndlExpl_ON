@@ -455,7 +455,10 @@ def HandleAvailablePostfix(generator, log):
             tfile.write('NAME = "%s"\n' % (name))
             tfile.write('PATH = "%s"\n' % (imageFile))
             tfile.write('TYPE = "OS"\n')
-            tfile.write('DESCRIPTION = "%s"\n' % (generator['VMCATCHER_EVENT_DC_DESCRIPTION']))
+            if generator['VMCATCHER_EVENT_DC_DESCRIPTION']:
+                tfile.write('DESCRIPTION = "%s"\n' % (generator['VMCATCHER_EVENT_DC_DESCRIPTION']))
+            else:
+                tfile.write('DESCRIPTION = "%s"\n' % (generator['VMCATCHER_EVENT_DC_TITLE']))
             tfile.write('VMCATCHER_EVENT_DC_IDENTIFIER = "%s"\n' % (generator['VMCATCHER_EVENT_DC_IDENTIFIER']))
             tfile.write('VMCATCHER_EVENT_DC_DESCRIPTION = "%s"\n' % (generator['VMCATCHER_EVENT_DC_DESCRIPTION']))
             tfile.write('VMCATCHER_EVENT_DC_TITLE = "%s"\n' % (generator['VMCATCHER_EVENT_DC_TITLE']))
