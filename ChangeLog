@@ -2,9 +2,9 @@ Changelog
 
 vmcatcher_eventHndl_ON-0.0.8
  * New changes introduced by Salvatore Pinto:
-  * As per [hepix-virtualisation/vmcatcher#8](https://github.com/hepix-virtualisation/vmcatcher/pull/8), vmcatcher now provides also the image marketplace uri under the variable VMCATCHER_EVENT_AD_MPURI . This patch is to add this information into the OpenNebula image template, for two reasons:
- 1. Identifying the marketplace source of an image.
- 2. Have the marketplace information in the middleware to fill the BDII.
+  * As per https://github.com/hepix-virtualisation/vmcatcher/pull/8, vmcatcher now provides also the image marketplace uri under the variable VMCATCHER_EVENT_AD_MPURI . This patch is to add this information into the OpenNebula image template, for two reasons:
+   1. Identifying the marketplace source of an image.
+   2. Have the marketplace information in the middleware to fill the BDII.
   * If no description is provided by vmcatcher (eg. no description is present into the imagelist), then fallback to use the title as image description
 
 vmcatcher_eventHndl_ON-0.0.7
