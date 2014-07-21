@@ -550,7 +550,7 @@ def main():
     reload(sys)
     sys.setdefaultencoding('utf-8')
 
-    p = optparse.OptionParser(version = "%prog " + "0.0.7")
+    p = optparse.OptionParser(version = "%prog " + "0.0.8")
     p.add_option('-g', '--generator', action ='store', type="int", help='Set the dictionary Generator.', metavar='MINIMUM', dest='generator')
     p.add_option('-v', '--verbose', action ='store_true', help='Change global log level, increasing log output.', dest='debug', default=True)
     p.add_option('-q', '--quiet', action ='store_false', help='Change global log level, decreasing log output.', dest='debug')

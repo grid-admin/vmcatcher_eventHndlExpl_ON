@@ -19,7 +19,7 @@ Release notes
 ------------
  * It can be found more information about current release in the following ChangeLog file, [ChangeLog](http://github.com/grid-admin/vmcatcher_eventHndlExpl_ON/blob/master/ChangeLog)
 
-vmcatcher_eventHndl_ON version 0.0.4 incorporates the following features:
+Since version 0.0.4, vmcatcher_eventHndl_ON incorporates the following features:
 
  * The image is named as `dc:identifier`
  * Expired images are named as `$dc:identifier TIMESTAMP`. Example: `93084776-1176-4849-95dc-cc7a15f2ce97 2014-06-04_12-54-44_+0200-CEST`
