@@ -11,7 +11,7 @@ VMcatcher: https://github.com/hepix-virtualisation/vmcatcher
 Requirements
 ------------
 
-* VMcatcher
+* VMcatcher = 0.5.0
 * Python 2.5
 * qemu-img >= 1.5.0 --`qemu-img-1.7.93-1 / qemu-utils_1.7.93-1` packages can be downloaded for Scientific Linux 6 and Debian 6 OS respectively from the following link: [http://repo.cesga.es/pub/](http://repo.cesga.es/pub/)
 
