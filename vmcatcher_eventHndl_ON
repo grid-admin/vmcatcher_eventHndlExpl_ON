@@ -43,6 +43,7 @@ EnvEvent = set(['VMCATCHER_EVENT_TYPE',
     'VMCATCHER_EVENT_SL_OSVERSION',
     'VMCATCHER_EVENT_TYPE',
     'VMCATCHER_EVENT_IL_DC_IDENTIFIER',
+    'VMCATCHER_EVENT_AD_MPURI',
     'VMCATCHER_EVENT_FILENAME'])
 
 EnvConf = set(['VMCATCHER_RDBMS',
@@ -472,6 +473,7 @@ def HandleAvailablePostfix(generator, log):
             tfile.write('VMCATCHER_EVENT_TYPE = "%s"\n' % (generator['VMCATCHER_EVENT_TYPE']))
             tfile.write('VMCATCHER_EVENT_IL_DC_IDENTIFIER = "%s"\n' % (generator['VMCATCHER_EVENT_IL_DC_IDENTIFIER']))
             tfile.write('VMCATCHER_EVENT_FILENAME = "%s"\n' % (generator['VMCATCHER_EVENT_FILENAME']))
+            tfile.write('VMCATCHER_EVENT_AD_MPURI = "%s"\n' % (generator['VMCATCHER_EVENT_AD_MPURI']))
             tfile.close()
 
     except IOError:
